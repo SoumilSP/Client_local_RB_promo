@@ -1112,7 +1112,7 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   not_prom[,UNCR_Total := (`RSP (unit)` - Promo_Price)*`Base Sales`]                                                  #addon
   not_prom[,OID_Total := OID_Unit*`Base Sales`]                                                    #addon
-  not_prom[,Total_Trade_Investment := (UNCR_Total + OID_Total+Retro_Funding_Total)]                                    #addon
+  not_prom[,Total_Trade_Investment := (UNCR_Total + OID_Total+Retro_Funding_Total)]                                  #addon
   
   # DEBUG: Comprehensive formula results
   cat("========== 3. CALCULATED FIELDS (not_prom) ==========\n")

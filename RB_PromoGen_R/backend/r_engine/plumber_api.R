@@ -2598,68 +2598,104 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
           # Calculate final KPIs from optimization output
           if (!is.null(opti_output) && nrow(opti_output) > 0) {
             cat("[CONSTRAINT CHECK] Checking if final output satisfies all constraints...\n")
+            cat("        Using ACTUAL opti_const table (same as optimizer used):\n")
             
             # Sum up the final KPIs from the optimization output
             final_net_revenue <- sum(opti_output$Net_Revenue, na.rm = TRUE)
             final_gross_sales <- sum(opti_output$Gross_Sales, na.rm = TRUE)
             final_gm_abs <- sum(opti_output$GM_Abs, na.rm = TRUE)
             final_trade_investment <- sum(opti_output$Total_Trade_Investment, na.rm = TRUE)
+            final_volume <- sum(opti_output$Volume, na.rm = TRUE)
             
             # Calculate percentages
             final_gm_pct <- if (final_net_revenue > 0) (final_gm_abs / final_net_revenue) * 100 else 0
             final_ts_pct_nr <- if (final_net_revenue > 0) (final_trade_investment / final_net_revenue) * 100 else 0
+            final_ts_pct_nis <- if (final_gross_sales > 0) (final_trade_investment / final_gross_sales) * 100 else 0
+            # ROI
+            final_roi <- if (final_trade_investment > 0) final_gm_abs / final_trade_investment else 0
+            # Market share (not directly computable from optimizer output, skip)
             
             cat("       Final Net Revenue:", final_net_revenue, "\n")
+            cat("       Final Gross Sales:", final_gross_sales, "\n")
+            cat("       Final GM Abs:", final_gm_abs, "\n")
+            cat("       Final Volume:", final_volume, "\n")
             cat("       Final GM%:", round(final_gm_pct, 2), "%\n")
             cat("       Final TS%NR:", round(final_ts_pct_nr, 2), "%\n")
+            cat("       Final TS%NIS:", round(final_ts_pct_nis, 2), "%\n")
+            cat("       Final ROI:", round(final_roi, 4), "\n")
             
-            # Check each constraint and build violation list
-            # Constraint 1: Net Revenue (NR)
-            nr_min_val <- as.numeric(nr_min)
-            nr_max_val <- as.numeric(nr_max)
-            if (final_net_revenue < nr_min_val || (nr_max_val < 1e19 && final_net_revenue > nr_max_val)) {
-              violation_type <- if (final_net_revenue < nr_min_val) "below_min" else "above_max"
-              violated_constraints_list[[length(violated_constraints_list) + 1]] <- list(
-                name = "Scan Net Revenue",
-                actual_value = final_net_revenue,
-                min_value = nr_min_val,
-                max_value = nr_max_val,
-                violation_type = violation_type
-              )
-              cat("       WARNING: Net Revenue constraint VIOLATED! (value=", final_net_revenue, ", min=", nr_min_val, ", max=", nr_max_val, ")\n")
-            }
+            # Map KPI_Mapping names to actual computed values
+            kpi_actual_values <- list(
+              "Net_Sales_model" = final_net_revenue,
+              "GM_percent_model" = final_gm_pct,
+              "Trade_as_per_NR_model" = final_ts_pct_nr,
+              "Trade_as_per_NIS_model" = final_ts_pct_nis,
+              "Gross_sales_model" = final_gross_sales,
+              "Gross_margin_model" = final_gm_abs,
+              "Volume_sales_model" = final_volume,
+              "ROI_model" = final_roi,
+              "Market_Share_model" = NA  # Cannot compute from optimizer output
+            )
             
-            # Constraint 2: GM% (only if meaningful constraints provided)
-            gm_min_val <- as.numeric(gm_min)
-            gm_max_val <- as.numeric(gm_max)
-            if (gm_min_val > -1e19 || gm_max_val < 1e19) {
-              if (final_gm_pct < gm_min_val || final_gm_pct > gm_max_val) {
-                violation_type <- if (final_gm_pct < gm_min_val) "below_min" else "above_max"
-                violated_constraints_list[[length(violated_constraints_list) + 1]] <- list(
-                  name = "Gross Margin % NR",
-                  actual_value = final_gm_pct,
-                  min_value = gm_min_val,
-                  max_value = gm_max_val,
-                  violation_type = violation_type
-                )
-                cat("       WARNING: GM% constraint VIOLATED! (value=", round(final_gm_pct, 2), "%, min=", gm_min_val, "%, max=", gm_max_val, "%)\n")
+            # Human-readable names for display
+            kpi_display_names <- list(
+              "Net_Sales_model" = "Scan Net Revenue",
+              "GM_percent_model" = "Gross Margin % NR",
+              "Trade_as_per_NR_model" = "Trade Spend % NR",
+              "Trade_as_per_NIS_model" = "Trade Spend % NIS",
+              "Gross_sales_model" = "Scan Gross Sales",
+              "Gross_margin_model" = "Gross Margin",
+              "Volume_sales_model" = "Volume Sales",
+              "ROI_model" = "ROI",
+              "Market_Share_model" = "Value Market Share"
+            )
+            
+            # CHECK EACH CONSTRAINT FROM THE ACTUAL opti_const TABLE
+            # This ensures we check the EXACT SAME constraints the optimizer used
+            for (i in 1:nrow(opti_const)) {
+              kpi_mapping <- opti_const$KPI_Mapping[i]
+              min_val <- opti_const$`Minimum Value`[i]
+              max_val <- opti_const$`Maximum Value`[i]
+              
+              # Skip unconstrained (both min and max are extreme)
+              is_unconstrained <- (min_val <= -1e19 && max_val >= 1e19)
+              if (is_unconstrained) {
+                cat("       con", i, "(", kpi_mapping, "): UNCONSTRAINED - skipping\n")
+                next
               }
-            }
-            
-            # Constraint 3: Trade Spend % NR (only if meaningful constraints provided)
-            ts_min_val <- as.numeric(ts_min)
-            ts_max_val <- as.numeric(ts_max)
-            if (ts_min_val > -1e19 || ts_max_val < 1e19) {
-              if (final_ts_pct_nr < ts_min_val || final_ts_pct_nr > ts_max_val) {
-                violation_type <- if (final_ts_pct_nr < ts_min_val) "below_min" else "above_max"
+              
+              actual_val <- kpi_actual_values[[kpi_mapping]]
+              display_name <- kpi_display_names[[kpi_mapping]]
+              
+              if (is.null(actual_val) || is.na(actual_val)) {
+                cat("       con", i, "(", kpi_mapping, "): Cannot compute value - skipping\n")
+                next
+              }
+              
+              # Check violation
+              violated <- FALSE
+              violation_type <- ""
+              if (min_val > -1e19 && actual_val < min_val) {
+                violated <- TRUE
+                violation_type <- "below_min"
+              } else if (max_val < 1e19 && actual_val > max_val) {
+                violated <- TRUE
+                violation_type <- "above_max"
+              }
+              
+              if (violated) {
                 violated_constraints_list[[length(violated_constraints_list) + 1]] <- list(
-                  name = "Trade Spend % NR",
-                  actual_value = final_ts_pct_nr,
-                  min_value = ts_min_val,
-                  max_value = ts_max_val,
+                  name = display_name,
+                  actual_value = actual_val,
+                  min_value = min_val,
+                  max_value = max_val,
                   violation_type = violation_type
                 )
-                cat("       WARNING: TS%NR constraint VIOLATED! (value=", round(final_ts_pct_nr, 2), "%, min=", ts_min_val, "%, max=", ts_max_val, "%)\n")
+                cat("       WARNING: con", i, "(", display_name, ") VIOLATED! value=", actual_val, 
+                    ", min=", min_val, ", max=", max_val, "\n")
+              } else {
+                cat("       con", i, "(", display_name, "): OK (value=", round(actual_val, 2), 
+                    ", range=[", min_val, ",", max_val, "])\n")
               }
             }
             
@@ -2682,7 +2718,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
                   sprintf("%.2f", vc$actual_value)
                 }
                 
-                min_formatted <- if (abs(vc$min_value) >= 1e6) sprintf("%.2fM", vc$min_value / 1e6) else sprintf("%.2f", vc$min_value)
+                min_formatted <- if (abs(vc$min_value) >= 1e6) sprintf("%.2fM", vc$min_value / 1e6) else if (vc$min_value <= -1e19) "unlimited" else sprintf("%.2f", vc$min_value)
                 max_formatted <- if (abs(vc$max_value) >= 1e6) sprintf("%.2fM", vc$max_value / 1e6) else if (vc$max_value >= 1e19) "unlimited" else sprintf("%.2f", vc$max_value)
                 
                 violation_detail <- paste0("- ", vc$name, " (value=", actual_formatted, ", min=", min_formatted, ", max=", max_formatted, ")")
