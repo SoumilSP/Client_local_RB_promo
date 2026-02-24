@@ -1,0 +1,5994 @@
+
+
+##########################################################
+## NEW OPTIMIZER RUN: 2026-02-24 16:32:18.040888
+##########################################################
+
+ 
+============================================================ 
+R PLUMBER API TRACE - /optimizer/run 
+============================================================ 
+[R-1] API Endpoint Called: POST /optimizer/run 
+[R-2] Plumber File: c:/PromoGen/Bilal_local_dep/RB_PromoGen_R/backend/r_engine/plumber_api.R 
+------------------------------------------------------------ 
+[R-3] SETTINGS Received: 
+      goal (code): GM%NR 
+      goal (full name): Gross Margin % of NR 
+      goal_sign: Max 
+      slot_criterion: Seasonality Trend 
+      run_type: Run Unconstrained Optimization 
+      roi_type: Incremental GM ROI 
+------------------------------------------------------------ 
+[R-4] FILTERS Received: 
+      retailer: Carrefour 
+      brand: Shower Gel 
+      ppg: D77 
+      date_type: quarterly 
+      start_month: Jan 
+      end_month: Jun 
+      start_quarter: Q1 
+      end_quarter: Q2 
+------------------------------------------------------------ 
+[R-5] CONSTRAINTS Received: 
+      GM Range: UNCONSTRAINED (not specified by user) 
+      TS%NR Range: UNCONSTRAINED (not specified by user) 
+      TS%NIS Range: UNCONSTRAINED (not specified by user) 
+      NR Range: $ 0.0  - $ 1e+20  [ACTIVE] 
+------------------------------------------------------------ 
+[R-6] RESTRICTIONS Received: 
+      Price Range: AED 8.0  - AED 12.1629 
+      Slots Range: 15 - 21 
+      Display Range: 0 - 10 (min-max number of Display promos) 
+      Flyer Range: 0 - 10 (min-max number of Flyer promos - future use) 
+      Investment Range: AED 1208.0  - AED 12086510.0 
+      Mechanics: tpr,display 
+------------------------------------------------------------ 
+[R-6a] OPTIMIZATION MODE SELECTION: 
+      >>> MODE: UNCONSTRAINED OPTIMIZATION <<< 
+      Will execute: optimization() with standard (non-LSM) data 
+      Data sources: SP_opti_best_seq, shiny_ip_events, prod_const 
+      Final optimization_mode: unconstrained 
+------------------------------------------------------------ 
+[R-7] Loading processed data from: C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/data_prep_op.RData 
+
+========== COMPONENT [[6]] DEBUG ==========
+Class: data.table, data.frame 
+Rows: 36 
+Columns: 18 
+Column names: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base_Units, RSP_Unit, Net_Cost_Unit, FM%, COGS_Unit, BIP_Case, OID, No_Of_Units, STP_Unit, OID_Unit, UNCR_Unit 
+PPG values: D77 
+============================================
+
+[R-8] Building constraints table with provided values 
+[R-7] Checking for optimization function in: c:/PromoGen/Bilal_local_dep/RB_PromoGen_R/backend/r_engine/annual_optimization.R 
+[R-8] FOUND: optimization() and best_seq() functions exist 
+------------------------------------------------------------ 
+[R-9] Attempting to call REAL optimization pipeline... 
+[R-10] Loading annual_optimization.R and dependencies... 
+[R-10a] Loading from: c:/PromoGen/Bilal_local_dep/RB_PromoGen_R/backend/r_engine/annual_optimization.R 
+[R-11] Loading tesco_slot from Carrefour Slots Excel file... 
+       - Loaded tesco_slot from: C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Carrefour Slots 2025-2026.xlsx 
+       - Columns: Start Date, End Date, Slot 
+       - Rows: 36 
+       - Date range:  2026-01-06  to  2027-01-05 
+[R-11a] Data components loaded: 
+       - shiny_opti_data_ip: 36 rows 
+       - tesco_slot: 36 slots (transformed) 
+       - shiny_ip_events (with Display_Flag): 405 rows 
+       - Columns in shiny_ip_events: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Display, Discount, Display_Cost, Display_Flag ... 
+[R-12] Building slot constraints from frontend (Slots Min: 15 , Slots Max: 21 )... 
+       - prod_const created for 1 PPGs 
+       - Display constraints: Min= 0 , Max= 10 
+       - Total slots: Min= 15 , Max= 21 
+       - Min_Investment: 1208.0 AED 
+       - Max_Investment: 12086510.0 AED 
+       - Columns: PPG, PRODUCT RANGE, FORMAT, PPG_Description, SECTOR 2, TRADING COMPANY, Min_Disc_Slots, Max_Disc_Slots, Min_Display_Slots, Max_Display_Slots, Min_Display_Weeks, Max_Display_Weeks, Min_Total_Weeks, Max_Total_Weeks, Min_Total_Slots, Max_Total_Slots, Min_Investment, Max_Investment 
+[R-13] Building optimization constraints... 
+       - gm_min: -1e+20 , gm_max: 1e+20 
+       - ts_min: -1e+20 , ts_max: 1e+20 
+       - nr_min: 0.0 , nr_max: 1e+20 
+       - gs_min: -1e+20 , gs_max: 1e+20 
+       - vol_min: -1e+20 , vol_max: 1e+20 
+       - gm_abs_min: -1e+20 , gm_abs_max: 1e+20 
+       - roi_min: -1e+20 , roi_max: 1e+20 
+       - ms_min: -1e+20 , ms_max: 1e+20 
+       - opti_const table built ( 6 rows, excluding goal: Gross Margin % of NR ) 
+         con 1 : Net_Sales_model : 0 - 1e+20 
+         con 2 : Trade_as_per_NR_model : -1e+20 - 1e+20 
+         con 3 : Trade_as_per_NIS_model : -1e+20 - 1e+20 
+         con 4 : Gross_sales_model : -1e+20 - 1e+20 
+         con 5 : Gross_margin_model : -1e+20 - 1e+20 
+         con 6 : Volume_sales_model : -1e+20 - 1e+20 
+       - Goal: GM%NR - Maximize 
+[R-13a] Converting frontend month selection to dates... 
+        - Using year from tesco_slot: 2026 
+        - Frontend selection: Jan to Jun 
+        - Converted to dates: 2026-01-01 to 2026-06-30 
+[R-13b] Filtering tesco_slot by date range... 
+        - tesco_slot BEFORE filter: 36 rows 
+        - tesco_slot AFTER filter: 17 rows 
+        - Filtered slot range: 2 to 18 
+[R-13c] Final date range: 2026-01-06 to 2026-06-30 
+        - shiny_opti_data_ip filtered to: 17 rows 
+[R-14] Using existing ROI_GM column as ROI 
+[R-15] Preparing brand data directly for optimization()...
+[R-DEBUG] brand_data columns: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base_Units, RSP_Unit, Net_Cost_Unit, FM%, COGS_Unit, BIP_Case, OID, No_Of_Units 
+[R-DEBUG] brand_data$PPG unique values: D77 
+
+[R-14] Preparing prod_const_promo_seq for best_seq()...
+        - Found PPGs: D77 
+        - prod_const_promo_seq columns: PPG, BRAND, FORMAT, Min_Total_Weeks, Max_Total_Weeks, Min_Total_Slots, Max_Total_Slots, Min_Display_Weeks, Max_Display_Weeks, Min_Display_Slots, Max_Display_Slots 
+        - Display constraints: Min= 0 , Max= 10 
+
+[R-15] Calling best_seq() to determine optimal promotion sequence...
+[R-15a] best_seq() inputs:
+        - shiny_opti_data_ip: 17 rows
+        - prod_const_promo_seq: 1 rows
+        - tesco_slot: 17 rows
+        - start_date: 2026-01-06 
+        - end_date: 2026-06-30 
+
+[BEST_SEQ] Starting best_seq() function
+[BEST_SEQ] Input tesco_slot rows: 17 
+[BEST_SEQ] Input start_date: 2026-01-06 class: Date 
+[BEST_SEQ] Input end_date: 2026-06-30 class: Date 
+[BEST_SEQ] Original PPG values saved: D77 
+[BEST_SEQ] tesco_slot Start Date range: 2026-01-06 to 2026-06-20 
+[BEST_SEQ] tesco_slot End Date range: 2026-01-15 to 2026-06-30 
+[BEST_SEQ] slot_start: 2 , slot_end: 18 
+[BEST_SEQ] all_slot count: 17 
+[BEST_SEQ] shiny_data rows BEFORE filter: 17 
+[BEST_SEQ] shiny_data Tesco_Week_No values: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+[BEST_SEQ] all_slot values: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 
+[BEST_SEQ] shiny_data rows AFTER filter: 17 
+[BEST_SEQ] PPG values after filter: D77 
+[BEST_SEQ] Using 17 slots for sequence generation (2^ 17 = 131,072 combinations)
+
+========== PPG TRACING IN BEST_SEQ ==========
+[TRACE] opt_ip$PPG (col 1) after rename:
+        - class: character 
+        - unique values: D77 
+[TRACE] shiny_data$PPG (original input):
+        - class: character 
+        - unique values: D77 
+============================================
+[R-15b] best_seq() completed successfully!
+        - brand_data rows: 17 
+        - brand_data columns: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base Sales, RSP (unit), Net Cost (Unit) ...
+        - Seq distribution: 0= 8 , 1= 9 
+[R-DEBUG] OID_Unit column found in data
+[R-DEBUG] OID_Unit values: min= 0 , max= 0 , sum= 0 
+       - brand_data prepared: 17 rows, 23 columns
+       - Key columns: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base Sales ...
+
+============================================================
+       CALLING optimization() FUNCTION
+============================================================
+Input parameters:
+  - brand: 17 rows
+  - opti_const: 6 rows
+  - prod_const: 1 rows
+  - events: 405 rows
+  - goal: GM%NR - Maximize 
+  - start_date: 2026-01-06 
+  - end_date: 2026-06-30 
+============================================================
+
+[R-DEBUG] PPG Parameter from frontend: D77 
+[R-DEBUG] PPG values in brand_data: D77 
+[R-DEBUG] include_ppg_list: D77 
+[R-DEBUG] include_format: tpr, display 
+[R-16a] Preparing opti_const (KPI constraints)...
+        - Constraint values from Python (already in correct units):
+          NR: min= 0 , max= 1e+20 
+          GM%: min= -1e+20 , max= 1e+20 
+          TS%NR: min= -1e+20 , max= 1e+20 
+          TS%NIS: min= -1e+20 , max= 1e+20 
+          GS: min= -1e+20 , max= 1e+20 
+          GM(Abs): min= -1e+20 , max= 1e+20 
+          Vol: min= -1e+20 , max= 1e+20 
+          ROI: min= -1e+20 , max= 1e+20 
+          MS: min= -1e+20 , max= 1e+20 
+        - Goal KPI to exclude from constraints: Gross Margin % of NR 
+        - opti_const: 6 rows (dynamically built, excluding goal)
+        - KPI Constraints Debug (FINAL VALUES FOR OPTIMIZER):
+          con 1 ( Net_Sales_model ): 0 - 1e+20 
+          con 2 ( Trade_as_per_NR_model ): -1e+20 - 1e+20 
+          con 3 ( Trade_as_per_NIS_model ): -1e+20 - 1e+20 
+          con 4 ( Gross_sales_model ): -1e+20 - 1e+20 
+          con 5 ( Gross_margin_model ): -1e+20 - 1e+20 
+          con 6 ( Volume_sales_model ): -1e+20 - 1e+20 
+[R-16b] Preparing prod_budget (budget constraints per PPG)...
+        - ppg_desc_val: ALL 
+        - prod_budget: 1 rows
+        - Investment constraints: AED 1208.0 - 12086510.0 
+        - prod_budget columns: PRODUCT RANGE, FORMAT, PPG, PPG_Description, Min_Investment, Max_Investment 
+        - prod_budget data:
+   PRODUCT RANGE   FORMAT    PPG PPG_Description Min_Investment Max_Investment
+          <char>   <char> <char>          <char>          <num>          <num>
+1:       RECKITT Bar Soap    D77             ALL           1208       12086510
+[R-16c] Preparing prod_const (product constraints)...
+        - prod_const: 1 rows
+        - prod_const columns: PPG, BRAND, FORMAT, LSM_Promo_Price_Min, LSM_Promo_Price_Max, Non_LSM_Min_Promo_Price, Non_LSM_Max_Promo_Price, Min_Disc_Slots, Max_Disc_Slots, Min_Display_Slots, Max_Display_Slots, Min_Total_Slots, Max_Total_Slots, Global_Floor_Price 
+        - Display constraints: Min= 0 , Max= 10 
+        - Price constraints in prod_const:
+          - Non_LSM_Min_Promo_Price: 8 
+          - Non_LSM_Max_Promo_Price: 12.1629 
+[R-16d] Preparing opti_goal...
+        - Goal (full name): Gross Margin % of NR 
+        - Goal (mapped): GM_percent_model 
+        - Direction: Maximize 
+        - Run Type: Run Unconstrained Optimization 
+        - ROI Type: Incremental GM ROI 
+[R-16e] Preparing last_year_kpi (Nielsen data with dates)...
+        - Created current_year_date from Week End Date 
+        - last_year_kpi: 2595 rows
+        - Date range: 2023-12-31 to 2025-12-20 
+
+[R-17] Executing optimization based on mode: unconstrained 
+        Run Type from frontend: Run Unconstrained Optimization 
+============================================================
+
+[R-17a] Calling event_list() function to filter events by price constraints...
+        - Events BEFORE event_list(): 405 rows
+        - Price constraints passed to event_list():
+          - Non_LSM_Min_Promo_Price: 8 (from price_min = 8.0 )
+          - Non_LSM_Max_Promo_Price: 12.1629 (from price_max = 12.1629 )
+          - LSM_Promo_Price_Min: 8 
+          - LSM_Promo_Price_Max: 12.1629 
+          - Global_Floor_Price: 8 
+        - prod_const structure:
+      PPG      BRAND   FORMAT LSM_Promo_Price_Min LSM_Promo_Price_Max
+   <char>     <char>   <char>               <num>               <num>
+1:    D77 Shower Gel Bar Soap                   8             12.1629
+   Non_LSM_Min_Promo_Price Non_LSM_Max_Promo_Price Min_Disc_Slots
+                     <num>                   <num>          <int>
+1:                       8                 12.1629             15
+   Max_Disc_Slots Min_Display_Slots Max_Display_Slots Min_Total_Slots
+            <int>             <int>             <int>           <int>
+1:             21                 0                10              15
+   Max_Total_Slots Global_Floor_Price
+             <int>              <num>
+1:              21                  8
+        - event_list() returned:
+          - LSM events: 72 rows
+          - Non-LSM events: 72 rows
+        - Using Non-LSM filtered events for unconstrained optimization
+        - Events AFTER event_list() filtering: 72 rows
+        - Promo_Price range after filtering: 8 - 12 
+        - Sample filtered events:
+      PPG  Discount Promo_Price
+   <char>     <num>       <num>
+1:    D77 0.4080338         8.0
+2:    D77 0.3710359         8.5
+3:    D77 0.3340381         9.0
+4:    D77 0.2970402         9.5
+5:    D77 0.2600423        10.0
+
+>>> EXECUTING UNCONSTRAINED OPTIMIZATION <<<
+        Parameters:
+        - brand (from best_seq): 17 rows
+        - shiny_const (opti_const): 6 rows
+        - budget_const (prod_budget): 1 rows
+        - events_base: 72 rows
+        - ppg_slots (prod_const): 1 rows
+        - last_year_kpi: 2595 rows
+        - include_format: tpr, display 
+        - roi: ROI 
+        - include_ppg: D77 
+        - start_date: 2026-01-06 
+        - end_date: 2026-06-30 
+
+========== PPG DEBUG ==========
+PPG column exists: TRUE 
+Unique PPG values in brand BEFORE filter: D77 
+PPG class: character 
+Number of rows BEFORE filter: 17 
+include_ppg value: D77 
+================================
+
+Number of rows AFTER filter: 17 
+PPGs in brand after filter: D77 
+[FIX] Ensuring all PPG columns are character type for merges...
+[FIX] PPG types - brand: character , events: character , ppg_slots: character , budget: character 
+
+========== OPTIMIZER DATA SUMMARY ==========
+Number of weeks in period: Calculating...
+PPGs in brand: 1 
+PPGs in events: 1 
+PPGs in budget: 1 
+Total events available: 72 
+Excluded PPGs: None 
+Included Formats: tpr, display 
+Included PPGs: D77  
+==========================================
+
+
+##########################################################
+##       COMPREHENSIVE DEBUG - ALL FIELDS & FORMULAS    ##
+##########################################################
+
+========== 1. INPUT BRAND DATA ==========
+Total brand rows: 17 
+not_prom rows (Seq==0): 8 
+prom rows (Seq==1): 9 
+
+All columns in brand:
+PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base Sales, RSP (unit), Net Cost (Unit), FM%, COGS (unit), BIP (Case), OID, No_Of_Units, STP (Unit), OID_Unit, UNCR_Unit, Start Date, End Date, Duration, Seq, VAT, Track ID 
+
+========== 2. KEY INPUT FIELDS (from brand/not_prom) ==========
+PPG values: D77 
+
+OID_Unit (Off-Invoice Discount per Unit):
+  min: 0 
+  max: 0 
+  mean: 0 
+  sum: 0 
+  first 5 values: 0, 0, 0, 0, 0 
+
+UNCR_Unit (Unconditional Rebate per Unit):
+  min: 0 
+  max: 0 
+  sum: 0 
+
+RSP (unit) - Retail Selling Price:
+  min: 13.51429 
+  max: 13.51429 
+  mean: 13.51429 
+
+Net Cost (Unit):
+  min: 16.44 
+  max: 16.44 
+
+COGS (unit) - Cost of Goods Sold:
+  min: 0.1957184 
+  max: 0.1957184 
+
+STP (Unit) - Standard Transfer Price:
+  min: 16.44 
+  max: 16.44 
+
+Base Sales (units):
+  sum: 384 
+  min: 14 
+  max: 67 
+
+========== 3. CALCULATED FIELDS (not_prom) ==========
+
+Formula: Event_Lift = Event_Multiplier_Tesco * Base Sales
+  Event_Multiplier_Tesco (set to 0 for non-promo): 0 
+  Event_Lift sum: 0 
+
+Formula: Total_Sales = Base Sales + Event_Lift
+  Total_Sales sum: 384 
+
+Formula: Promo_Price = RSP (unit) [for non-promo weeks]
+  Promo_Price min: 13.51429 
+  Promo_Price max: 13.51429 
+
+Formula: Gross_Sales = Promo_Price * Total_Sales
+  Gross_Sales sum: 5189.486 
+
+Formula: UNCR_Total = (RSP (unit) - Promo_Price) * Base Sales
+  NOTE: For non-promo, RSP == Promo_Price, so UNCR_Total should be 0
+  RSP (unit) sample: 13.51429 13.51429 13.51429 
+  Promo_Price sample: 13.51429 13.51429 13.51429 
+  (RSP - Promo_Price) sample: 0 0 0 
+  UNCR_Total sum: 0 
+
+Formula: OID_Total = OID_Unit * Base Sales
+  OID_Unit sample: 0 0 0 
+  Base Sales sample: 67 44 33 
+  OID_Total sum: 0 
+
+*** CRITICAL: Total_Trade_Investment = UNCR_Total + OID_Total ***
+  UNCR_Total sum: 0 
+  OID_Total sum: 0 
+  Total_Trade_Investment sum: 1738.478 
+  >>> THIS IS WHAT FEEDS INTO Investment_ppg <<<
+
+Formula: Net_Revenue = Gross_Sales - Total_Trade_Investment
+Formula: NIS = Gross_Sales - UNCR_Total - OID_Total
+Formula: GM_Abs = Net_Revenue - COGS_Total
+===========================================
+
+========== 4. NON-PROMOTED WEEKS SUMMARY ==========
+not_prom_GM_Abs: 3375.852 
+not_prom_Total_Sales: 384 
+not_prom_BIP: 6312.96 
+not_prom_Gross_Sales: 5189.486 
+not_prom_Total_Trade_Investment: 1738.478  *** KEY VALUE ***
+not_prom_Net_Revenue: 3451.008 
+not_prom_NIS: 5189.486 
+not_prom_Value_Sales: 5189.486 
+===========================================
+
+========== 5. PROMOTED WEEKS DATA ==========
+prom rows (Seq==1): 9 
+prom PPG values: D77 
+prom Base Sales sum: 368 
+===========================================
+
+
+========== STARTING OPTIMIZATION LOOP ==========
+Promotion base rows: 9 
+Total events to process: 72 
+Max iterations pre-allocated: 10000 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Budget Status Check for PPG: D77 ---
+Budget Status: between 
+Budget Details: Status=between, Investment_ppg=19104.766991514, Min_Inv_Req=1208, Max_Inv_Req=12086510 
+---
+[DEBUG] budget_const columns: PRODUCT RANGE, FORMAT, PPG, PPG_Description, Min_Investment, Max_Investment 
+[DEBUG] budget_const data:
+Key: <PPG>
+Index: <PPG>
+   PRODUCT RANGE   FORMAT    PPG PPG_Description Min_Investment Max_Investment
+          <char>   <char> <char>          <char>          <num>          <num>
+1:       RECKITT Bar Soap    D77             ALL           1208       12086510
+[DEBUG] budget_info keys before merge:
+   PRODUCT RANGE   FORMAT    PPG PPG_Description
+          <char>   <char> <char>          <char>
+1:       RECKITT Bar Soap    D77             ALL
+[DEBUG] Merging budget_const by PPG only:
+Key: <PPG>
+      PPG Min_Investment Max_Investment
+   <char>          <num>          <num>
+1:    D77           1208       12086510
+[DEBUG] budget_info after merge:
+Key: <PPG>
+      PPG Min_Investment Max_Investment Total_Trade_Investment_prom
+   <char>          <num>          <num>                       <num>
+1:    D77           1208       12086510                    17366.29
+   Total_Trade_Investment_not_prom
+                             <num>
+1:                        1738.478
+[DEBUG] After NA handling - Min_Investment: 1208 
+[DEBUG] After NA handling - Max_Investment: 12086510 
+[DEBUG] Budget Status: Budget Range Satisfied 
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 1 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 1 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 2 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 2 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 3 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 3 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 4 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 4 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 5 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 5 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 6 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 6 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 7 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 7 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 8 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 8 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 9 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 9 ) ---
+PPG: D77 | Event ROI: 0.9394651 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 10 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 10 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 11 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 11 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 12 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 12 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 13 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 13 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 14 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 14 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 15 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 15 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 16 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 16 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 17 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 17 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 18 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 18 ) ---
+PPG: D77 | Event ROI: 0.9394229 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 19 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 19 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+WARNING: Update rejected at iteration 20 | PPG: D77 | Reason: Constraints not improved
+
+--- Constraint Check (Iteration 20 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 21 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 22 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 23 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 24 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 25 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 26 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 27 ) ---
+PPG: D77 | Event ROI: 0.9394088 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 28 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 29 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 30 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 31 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 32 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 33 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 34 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 35 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 36 ) ---
+PPG: D77 | Event ROI: 0.939381 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 37 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 38 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 39 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 40 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 41 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 42 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 43 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 44 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 45 ) ---
+PPG: D77 | Event ROI: 0.9391677 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 46 ) ---
+PPG: D77 | Event ROI: 0.9388396 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 47 ) ---
+PPG: D77 | Event ROI: 0.9388396 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 48 ) ---
+PPG: D77 | Event ROI: 0.9388396 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 49 ) ---
+PPG: D77 | Event ROI: 0.9388396 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+--- Constraint Check (Iteration 50 ) ---
+PPG: D77 | Event ROI: 0.9388396 
+Base Constraints: 1, 1, 1, 1, 1, 1 
+Update Constraints: 1, 1, 1, 1, 1, 1 
+---
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== CHECKING DO_CALCULATION OUTPUT ==========
+Total_Sales zeros: 0 
+Inc_GM_Abs Inf: 0 
+Inc_Revenue Inf: 0 
+Inc_NIS Inf: 0 
+==========================================
+
+
+========== OPTIMIZATION COMPLETE ==========
+Total iterations run: 648 
+Total replacements attempted: 648 
+Total updates accepted: 648 
+Total final updates: 27 
+Optimization stopped: NO (completed) 
+Output rows: 17 
+KPI iterations tracked: 648 
+==========================================
+
+
+>>> UNCONSTRAINED OPTIMIZATION COMPLETED <<<
+
+============================================================
+       OPTIMIZATION COMPLETED SUCCESSFULLY
+       Mode: unconstrained 
+============================================================
+[CONSTRAINT CHECK] Checking if final output satisfies all constraints...
+       Final Net Revenue: 16990.09 
+       Final GM%: 97.15 %
+       Final TS%NR: 78.44 %
+       All constraints satisfied!
+[STORE] Saving optimization result to global 'optimized_output'...
+[STORE] Saved to: C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/optimized_output.RData 
+[STORE] optimized_output rows: 17 
+[STORE] Dashboard GET endpoints will now return optimized data!
+[R-FINAL] Preparing response... 
+  Execution mode: REAL best_seq() + optimization() executed successfully 
+============================================================ 
+[R-14] Response ready. Returning to Python proxy. 
+============================================================ 

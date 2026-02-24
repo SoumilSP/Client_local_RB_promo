@@ -1,0 +1,145 @@
+{
+  "identity": {
+    "name": "PromoGen",
+    "persona": "The Performance Pro (Reckitt Edition)",
+    "vibe": "Energetic, Precise, Enterprise-Grade, Trustworthy",
+    "principles": [
+      "Fusion over Imitation: Mix Enterprise Density with Consumer Brand Energy",
+      "Content is King: Data is the hero, UI is the stage",
+      "Contrast: High contrast for readability, 'Energy Pink' for action"
+    ]
+  },
+  "typography": {
+    "primary_font": "Manrope",
+    "secondary_font": "Inter",
+    "import_statement": "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');",
+    "usage": {
+      "headings": "font-family: 'Manrope', sans-serif; font-weight: 700; tracking-tight;",
+      "body": "font-family: 'Inter', sans-serif;",
+      "data_tables": "font-family: 'Inter', sans-serif; font-feature-settings: 'tnum';",
+      "mono": "font-family: 'JetBrains Mono', monospace;"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": "#E42E92",
+      "secondary": "#0099DC",
+      "success": "#84C343",
+      "warning": "#FFCC07",
+      "danger": "#FF4343",
+      "info": "#CC66FF",
+      "background_light": "#FFFFFF",
+      "background_dark": "#0A0A0A",
+      "surface_light": "#F8F9FA",
+      "surface_dark": "#121212"
+    },
+    "tailwind_extension": {
+      "colors": {
+        "reckitt": {
+          "pink": "#E42E92",
+          "blue": "#0099DC",
+          "green": "#84C343",
+          "yellow": "#FFCC07",
+          "red": "#FF4343",
+          "purple": "#CC66FF"
+        }
+      }
+    }
+  },
+  "layout": {
+    "grid_system": "Bento Grid Mode B (High Density)",
+    "spacing": "Generous (2x standard)",
+    "container_padding": "p-6 md:p-8 lg:p-12",
+    "sidebar": {
+      "width": "w-64",
+      "collapsed_width": "w-16",
+      "behavior": "Collapsible, sticky"
+    }
+  },
+  "components": {
+    "buttons": {
+      "style": "Pill-shaped or slightly rounded (rounded-md)",
+      "primary": "bg-reckitt-pink hover:bg-reckitt-pink/90 text-white shadow-lg shadow-reckitt-pink/20",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+    },
+    "cards": {
+      "style": "Flat with subtle border, no shadow by default, lift on hover",
+      "classes": "border border-border/40 bg-card text-card-foreground hover:shadow-md transition-all duration-200"
+    },
+    "inputs": {
+      "style": "Minimalist, high contrast focus ring",
+      "classes": "border-input bg-background ring-offset-background focus-visible:ring-reckitt-pink"
+    },
+    "charts": {
+      "library": "recharts",
+      "theme": {
+        "grid": "stroke-border/50 stroke-dasharray-3-3",
+        "tooltip": "bg-popover/90 backdrop-blur-md border-border shadow-xl rounded-lg",
+        "colors": ["#E42E92", "#0099DC", "#84C343", "#FFCC07", "#CC66FF", "#FF4343"]
+      }
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-white/70 dark:bg-black/60 border-b border-white/20",
+    "gradients": "Use subtle mesh gradients in 'Energy Pink' and 'Reckitt Blue' for hero backgrounds or active states, NEVER for full screens.",
+    "shadows": "shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]"
+  },
+  "images": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1646806950396-5dbe86c336cd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzdXBlcm1hcmtldCUyMGFpc2xlJTIwYmx1cnJlZHxlbnwwfHx8fDE3Njk2MDg4OTN8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Blurred modern supermarket aisle",
+      "usage": "Cover image for login page split layout"
+    },
+    "empty_state": {
+      "url": "https://images.unsplash.com/photo-1762279388979-6a430989284c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDB8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhdGElMjB2aXN1YWxpemF0aW9uJTIwdGVjaG5vbG9neXxlbnwwfHx8fDE3Njk2MDg4OTV8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract data visualization",
+      "usage": "Placeholder for empty dashboards or loading states"
+    },
+    "logo": {
+      "path": "/reckitt_logo.svg",
+      "alt": "Reckitt Logo"
+    }
+  },
+  "pages": {
+    "login": {
+      "layout": "Split Screen (50/50)",
+      "features": ["Branding", "Form", "Forgot Password", "SSO Options (Visual only)"]
+    },
+    "dashboard": {
+      "layout": "Bento Grid",
+      "widgets": ["KPI Cards (Value, Volume, Price)", "ROI Bubble Chart", "Recent Activity List"]
+    },
+    "promotion_effectiveness": {
+      "layout": "Filter Bar (Top) + Main Chart Area + Data Table (Bottom)",
+      "charts": ["Bubble Chart (ROI vs Spend)", "Bar Chart (Uplift by Category)"]
+    },
+    "optimizer": {
+      "layout": "Two-Column: Controls (Left 30%) + Results (Right 70%)",
+      "features": ["Constraint Sliders", "Exclusion Toggles", "Scenario Comparison"]
+    },
+    "calendar": {
+      "layout": "Full Width",
+      "features": ["Month/Week/Day Views", "Color-coded Events", "Drag & Drop (Visual)"]
+    },
+    "admin": {
+      "layout": "Tabs (Branding, SMTP, Users)",
+      "features": ["Logo Upload", "Color Pickers", "SMTP Test Button"]
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL DEPENDENCIES: npm install lucide-react recharts framer-motion clsx tailwind-merge @radix-ui/react-slot @radix-ui/react-tabs @radix-ui/react-dialog @radix-ui/react-popover @radix-ui/react-select @radix-ui/react-label @radix-ui/react-switch @radix-ui/react-slider @radix-ui/react-checkbox @radix-ui/react-avatar @radix-ui/react-toast sonner date-fns react-day-picker",
+    "2. SETUP TAILWIND: Extend the theme with 'reckitt' colors defined in the colors section.",
+    "3. FONTS: Add the Google Fonts import to index.css.",
+    "4. COMPONENTS: Use Shadcn UI as the base. Copy the code for Button, Card, Input, Select, Tabs, Dialog, etc., into src/components/ui.",
+    "5. THEME: Implement a ThemeProvider for Dark/Light mode toggling.",
+    "6. MOCK DATA: Create a robust mock data service for charts and tables since the backend might not be fully ready.",
+    "7. LOGO: Use the provided SVG at /reckitt_logo.svg. Ensure it's visible on both dark and light backgrounds (might need a white version for dark mode or a container).",
+    "8. TESTIDS: Add data-testid to all interactive elements (e.g., 'login-btn', 'kpi-card-value')."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI Slop': Do not use generic gradients or centered text everywhere.",
+    "Micro-interactions: Add hover states to all cards and buttons.",
+    "Data Density: This is an enterprise tool. Don't make things too big. Use whitespace intelligently but keep data dense.",
+    "Accessibility: Ensure contrast ratios are met, especially with the Pink and Blue text."
+  ]
+}

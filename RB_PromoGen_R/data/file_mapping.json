@@ -1,0 +1,15 @@
+{
+  "nielsen_rms": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/New file.xlsx",
+  "model_results": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Model Results for 5 SKUs.xlsx",
+  "events": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/HEA Events.xlsx",
+  "cost_bible": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/5 Cost Bible Brand (1).xlsx",
+  "retailer_slots": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Carrefour Slots 2025-2026.xlsx",
+  "ean_ldesc": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/8 Nielsen EAN to LDESC D77 (1).xlsx",
+  "lsm": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/LSM_New (1).xlsx",
+  "brand_delist": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Brand_DL_NL (1).xlsx",
+  "retailer_weekend": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Retailer WeekEnd Day CF.xlsx",
+  "ean_ppg": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/4 EAN to PPG Mapping UPDATED.xlsx",
+  "date_mapping": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Date_Mapping.csv",
+  "format_mapping": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Format_Mapping updated.xlsx",
+  "column_mapping": "C:/PromoGen/Bilal_local_dep/RB_PromoGen_R/data/Column_Mapping.xlsx"
+}
