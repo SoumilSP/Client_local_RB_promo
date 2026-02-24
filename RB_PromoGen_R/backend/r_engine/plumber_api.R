@@ -225,6 +225,25 @@ load_data_file <- function(file_id) {
       data <- data.table(read_excel(file_path))
     }
     cat("Loaded", file_id, ":", nrow(data), "rows,", ncol(data), "cols\n")
+    
+    # FIX: Enforce numeric types for cost_bible columns to prevent 'non-numeric argument' errors
+    # This handles cases where CSV values may be read as character (e.g., numbers with formatting)
+    if (file_id == "cost_bible") {
+      numeric_cols <- c("COGS_Case", "No_Of_Units", "Fridge_Price", "Case_Pack", "POSM_Cost", "COGS_Unit",
+                        "BIP_Case", "OID", "STP_Case", "MRRP_Unit", "VAT", "RSP_Cost_Bible_Unit",
+                        "Net_Cost_Unit", "STP_Unit", "OID_Unit", "UNCR_Unit")
+      for (col in numeric_cols) {
+        if (col %in% names(data)) {
+          original_class <- class(data[[col]])[1]
+          # Remove any non-numeric characters (commas, currency symbols) and convert to numeric
+          if (!is.numeric(data[[col]])) {
+            data[[col]] <- as.numeric(gsub("[^0-9.-]", "", as.character(data[[col]])))
+            cat("[TYPE-FIX] Converted", col, "from", original_class, "to numeric\n")
+          }
+        }
+      }
+    }
+    
     return(data)
   }, error = function(e) {
     cat("Error loading", file_id, ":", as.character(e), "\n")
@@ -551,6 +570,56 @@ function(req, retailer = "Carrefour", manufacturer = "Reckitt", brand = "DETTOL"
     model_results <- load_data_file("model_results")
     events <- load_data_file("events")
     cost_bible <- load_data_file("cost_bible")
+    
+    # CRITICAL TRACE: Log cost_bible file path and COGS values
+    if (!is.null(cost_bible) && nrow(cost_bible) > 0) {
+      cat("[COGS-TRACE-LOAD] cost_bible loaded:", nrow(cost_bible), "rows\n")
+      cat("[COGS-TRACE-LOAD] cost_bible columns:", paste(names(cost_bible), collapse=", "), "\n")
+      if ("COGS_Case" %in% names(cost_bible)) {
+        cat("[COGS-TRACE-LOAD] COGS_Case values:", paste(cost_bible$COGS_Case, collapse=", "), "\n")
+      } else {
+        cat("[COGS-TRACE-LOAD] WARNING: 'COGS_Case' column NOT found! Available:", paste(names(cost_bible), collapse=", "), "\n")
+      }
+      if ("No_Of_Units" %in% names(cost_bible)) {
+        cat("[COGS-TRACE-LOAD] No_Of_Units values:", paste(cost_bible$No_Of_Units, collapse=", "), "\n")
+      }
+      if ("PPG" %in% names(cost_bible)) {
+        cat("[COGS-TRACE-LOAD] PPG values:", paste(cost_bible$PPG, collapse=", "), "\n")
+      }
+      # Calculate and show what COGS_Unit SHOULD be
+      if ("COGS_Case" %in% names(cost_bible) && "No_Of_Units" %in% names(cost_bible)) {
+        # FIX: Double-check and enforce numeric types before division
+        cogs_case_vals <- cost_bible$COGS_Case
+        no_of_units_vals <- cost_bible$No_Of_Units
+        
+        # Log types for debugging
+        cat("[COGS-TRACE-LOAD] COGS_Case type:", class(cogs_case_vals)[1], "\n")
+        cat("[COGS-TRACE-LOAD] No_Of_Units type:", class(no_of_units_vals)[1], "\n")
+        
+        # Force numeric conversion as safeguard
+        if (!is.numeric(cogs_case_vals)) {
+          cogs_case_vals <- as.numeric(gsub("[^0-9.-]", "", as.character(cogs_case_vals)))
+          cost_bible$COGS_Case <- cogs_case_vals
+          cat("[COGS-TRACE-LOAD] Forced COGS_Case to numeric\n")
+        }
+        if (!is.numeric(no_of_units_vals)) {
+          no_of_units_vals <- as.numeric(gsub("[^0-9.-]", "", as.character(no_of_units_vals)))
+          cost_bible$No_Of_Units <- no_of_units_vals
+          cat("[COGS-TRACE-LOAD] Forced No_Of_Units to numeric\n")
+        }
+        
+        expected_cogs_unit <- cogs_case_vals / no_of_units_vals
+        cat("[COGS-TRACE-LOAD] Expected COGS_Unit (COGS_Case/No_Of_Units):", paste(round(expected_cogs_unit, 6), collapse=", "), "\n")
+      }
+    } else {
+      cat("[COGS-TRACE-LOAD] WARNING: cost_bible is NULL or empty! Check file_mapping for 'cost_bible' path\n")
+      cat("[COGS-TRACE-LOAD] file_mapping keys:", paste(names(file_mapping), collapse=", "), "\n")
+      if ("cost_bible" %in% names(file_mapping)) {
+        cat("[COGS-TRACE-LOAD] cost_bible path:", file_mapping[["cost_bible"]], "\n")
+        cat("[COGS-TRACE-LOAD] File exists:", file.exists(file_mapping[["cost_bible"]]), "\n")
+      }
+    }
+    
     retailer_slots <- load_data_file("retailer_slots")
     ean_ldesc <- load_data_file("ean_ldesc")
     lsm <- load_data_file("lsm")
@@ -624,6 +693,25 @@ function(req, retailer = "Carrefour", manufacturer = "Reckitt", brand = "DETTOL"
         cat("  retailer_weekend rows:", nrow(retailer_weekend), "\n")
         cat("  date_mapping rows:", nrow(date_mapping), "\n")
         
+        # TRACE: Log cost_bible COGS values BEFORE calling data_prep
+        if (!is.null(cost_bible) && nrow(cost_bible) > 0) {
+          cat("[COGS-TRACE] cost_bible loaded with", nrow(cost_bible), "rows\n")
+          cat("[COGS-TRACE] cost_bible columns:", paste(names(cost_bible), collapse=", "), "\n")
+          if ("COGS_Case" %in% names(cost_bible)) {
+            cat("[COGS-TRACE] COGS_Case values:", paste(head(cost_bible$COGS_Case, 5), collapse=", "), "\n")
+          } else {
+            cat("[COGS-TRACE] WARNING: COGS_Case column NOT found in cost_bible!\n")
+          }
+          if ("No_Of_Units" %in% names(cost_bible)) {
+            cat("[COGS-TRACE] No_Of_Units values:", paste(head(cost_bible$No_Of_Units, 5), collapse=", "), "\n")
+          }
+          if ("COGS_Unit" %in% names(cost_bible)) {
+            cat("[COGS-TRACE] COGS_Unit already in cost_bible (PRE data_prep):", paste(head(cost_bible$COGS_Unit, 5), collapse=", "), "\n")
+          }
+        } else {
+          cat("[COGS-TRACE] WARNING: cost_bible is NULL or empty!\n")
+        }
+        
         # Call original data_prep with EXACT parameter names
         data_prep_op <<- data_prep(
           nielsen = nielsen_rms,
@@ -645,6 +733,48 @@ function(req, retailer = "Carrefour", manufacturer = "Reckitt", brand = "DETTOL"
         
         cat("data_prep completed successfully!\n")
         cat("Result has", length(data_prep_op), "components\n")
+        
+        # DEBUG: Log all component sizes to identify which ones are empty
+        cat("\n========== DATA_PREP COMPONENTS SUMMARY ==========\n")
+        component_names <- c("[[1]] nielsen", "[[2]] cal_sample", "[[3]] event_file", 
+                            "[[4]] opti_const", "[[5]] prod_restrictions", "[[6]] optimizer_data",
+                            "[[7]] tesco_cal", "[[8]] exclude_ppg", "[[9]] events_final",
+                            "[[10]] competition", "[[11]] weekEndDay_no", "[[12]] week_end_day", "[[13]] config")
+        for (i in seq_along(data_prep_op)) {
+          comp <- data_prep_op[[i]]
+          if (is.data.frame(comp) || is.data.table(comp)) {
+            cat(component_names[i], ": ", nrow(comp), " rows x ", ncol(comp), " cols\n", sep="")
+          } else if (is.list(comp)) {
+            cat(component_names[i], ": list with ", length(comp), " elements\n", sep="")
+          } else {
+            cat(component_names[i], ": ", class(comp)[1], " = ", as.character(comp)[1], "\n", sep="")
+          }
+        }
+        cat("==================================================\n\n")
+        
+        # TRACE: Check COGS values in dp[[6]] (shiny_ip_optimizer / shiny_opti_data_ip)
+        if (length(data_prep_op) >= 6 && !is.null(data_prep_op[[6]]) && nrow(data_prep_op[[6]]) > 0) {
+          dp6 <- data_prep_op[[6]]
+          cat("[COGS-TRACE] dp[[6]] (optimizer data) has", nrow(dp6), "rows,", ncol(dp6), "cols\n")
+          cat("[COGS-TRACE] dp[[6]] columns:", paste(names(dp6), collapse=", "), "\n")
+          if ("COGS_Unit" %in% names(dp6)) {
+            cat("[COGS-TRACE] dp[[6]] COGS_Unit values (unique):", paste(head(unique(dp6$COGS_Unit), 5), collapse=", "), "\n")
+            cat("[COGS-TRACE] dp[[6]] COGS_Unit range: min=", min(dp6$COGS_Unit, na.rm=TRUE), ", max=", max(dp6$COGS_Unit, na.rm=TRUE), "\n")
+          } else {
+            cat("[COGS-TRACE] WARNING: COGS_Unit column NOT found in dp[[6]]!\n")
+            cat("[COGS-TRACE] dp[[6]] column names:", paste(names(dp6), collapse=", "), "\n")
+          }
+        } else {
+          cat("[COGS-TRACE] WARNING: dp[[6]] is NULL or empty!\n")
+        }
+        
+        # Also check dp[[1]] (nielsen) for COGS_Unit
+        if (length(data_prep_op) >= 1 && !is.null(data_prep_op[[1]]) && nrow(data_prep_op[[1]]) > 0) {
+          dp1 <- data_prep_op[[1]]
+          if ("COGS_Unit" %in% names(dp1)) {
+            cat("[COGS-TRACE] dp[[1]] (nielsen) also has COGS_Unit:", paste(head(unique(dp1$COGS_Unit), 5), collapse=", "), "\n")
+          }
+        }
         
       }, error = function(e) {
         cat("\n========== DATA_PREP ERROR ==========\n")
@@ -690,6 +820,28 @@ function(req, retailer = "Carrefour", manufacturer = "Reckitt", brand = "DETTOL"
         "Saturday",
         list(retailer = retailer, manufacturer = manufacturer, brand = brand, processed_at = Sys.time())  # [[13]] config
       )
+    }
+    
+    # CRITICAL VALIDATION: Check if component [[6]] (optimizer data) is empty
+    # This is the most common cause of optimization failures
+    if (is.null(data_prep_op[[6]]) || nrow(data_prep_op[[6]]) == 0 || ncol(data_prep_op[[6]]) == 0) {
+      cat("\n========== CRITICAL WARNING: EMPTY OPTIMIZER DATA ==========\n")
+      cat("Component [[6]] (shiny_ip_optimizer / base_sale_roll) is empty!\n")
+      cat("This will cause optimization to fail.\n\n")
+      cat("Common causes:\n")
+      cat("1. No matching dates between nielsen_rms and retailer_slots (tesco calendar)\n")
+      cat("2. PPG values in cost_bible don't match PPGs in nielsen_rms\n")
+      cat("3. All data was filtered out due to Flag conditions\n\n")
+      cat("Debug info:\n")
+      cat("  nielsen_rms rows:", nrow(nielsen_rms), "\n")
+      cat("  events rows:", nrow(events), "\n")
+      cat("  cost_bible rows:", nrow(cost_bible), "\n")
+      cat("  retailer_slots rows:", nrow(retailer_slots %||% data.table()), "\n")
+      cat("  ean_ppg rows:", nrow(ean_ppg), "\n")
+      cat("============================================================\n\n")
+      
+      # Still save the data but warn the user
+      cat("WARNING: Saving data_prep_op anyway, but optimization will likely fail.\n")
     }
     
     # Save processed data
@@ -758,8 +910,15 @@ function(req, retailer = "Carrefour", manufacturer = "Reckitt", brand = "DETTOL"
     cat("##  Brand:", brand, "\n")
     cat("##########################################################\n\n")
     
+    # Build warning message if optimizer data is empty
+    optimizer_warning <- NULL
+    if (is.null(data_prep_op[[6]]) || nrow(data_prep_op[[6]]) == 0) {
+      optimizer_warning <- "WARNING: Optimizer data (component 6) is empty. Optimization will fail until this is resolved. Check that dates and PPGs match between input files."
+    }
+    
     list(
       success = TRUE,
+      warning = optimizer_warning,
       message = "Data processed and saved to data_prep_op.RData",
       data_prep_path = DATA_PREP_PATH,
       components = list(
@@ -828,6 +987,11 @@ function() {
     dp <- get("data_prep_op", envir = .GlobalEnv)
     if (is.list(dp) && length(dp) > 0) {
       nielsen_data <- dp[[1]]
+      cat("[FILTERS] Loaded nielsen_data from data_prep_op[[1]]:", nrow(nielsen_data), "rows,", ncol(nielsen_data), "cols\n")
+      cat("[FILTERS] Column names (first 20):", paste(head(names(nielsen_data), 20), collapse=", "), "\n")
+      # Check for PPG-related columns
+      ppg_cols <- grep("PPG|PRODUCT", names(nielsen_data), ignore.case=TRUE, value=TRUE)
+      cat("[FILTERS] PPG-related columns found:", paste(ppg_cols, collapse=", "), "\n")
     }
   }
   
@@ -844,10 +1008,24 @@ function() {
       if (col %in% names(data)) {
         vals <- unique(data[[col]])
         vals <- vals[!is.na(vals)]
+        cat("[FILTERS] Found", length(vals), "unique values in column:", col, "\n")
         if (length(vals) > 0) return(vals)
       }
     }
+    cat("[FILTERS] No values found for columns:", paste(col_names, collapse=", "), "\n")
     return(character(0))
+  }
+  
+  # Also try to get PPGs from optimizer_data (dp[[6]]) which is the actual source for optimization
+  optimizer_ppgs <- character(0)
+  if (exists("data_prep_op", envir = .GlobalEnv)) {
+    dp <- get("data_prep_op", envir = .GlobalEnv)
+    if (is.list(dp) && length(dp) >= 6 && !is.null(dp[[6]]) && nrow(dp[[6]]) > 0) {
+      if ("PPG" %in% names(dp[[6]])) {
+        optimizer_ppgs <- unique(dp[[6]]$PPG)
+        cat("[FILTERS] Found", length(optimizer_ppgs), "PPGs from optimizer_data:", paste(optimizer_ppgs, collapse=", "), "\n")
+      }
+    }
   }
   
   # Get configured retailer from saved config
@@ -865,13 +1043,25 @@ function() {
     data_customers
   }
   
+  # Get PPGs - try nielsen first, then fall back to optimizer_data
+  nielsen_ppgs <- get_unique_values(nielsen_data, c("PPG", "PRODUCT RANGE", "Product Range"))
+  final_ppgs <- if (length(nielsen_ppgs) > 0) {
+    nielsen_ppgs
+  } else if (length(optimizer_ppgs) > 0) {
+    cat("[FILTERS] Using optimizer_data PPGs as fallback\n")
+    optimizer_ppgs
+  } else {
+    character(0)
+  }
+  cat("[FILTERS] Returning", length(final_ppgs), "PPGs\n")
+  
   list(
     data_source = "data_prep_op",
     customers = customers_list,
     categories = get_unique_values(nielsen_data, c("Category", "CATEGORY")),
     brands = get_unique_values(nielsen_data, c("Brand", "BRAND")),
     formats = get_unique_values(nielsen_data, c("Format", "FORMAT")),
-    ppgs = get_unique_values(nielsen_data, c("PPG", "PRODUCT RANGE", "Product Range")),
+    ppgs = final_ppgs,
     # Also return the configured values
     configured_retailer = configured_retailer,
     configured_manufacturer = configured_manufacturer,
@@ -1477,7 +1667,19 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
   log_msg("------------------------------------------------------------")
   log_msg(paste("[R-7] Loading processed data from:", DATA_PREP_PATH))
   
-  # Load processed data
+  # ALWAYS reload data_prep_op from disk to ensure latest data prep results are used
+  # This is critical when user changes input files (e.g., COGS_Case in cost_bible) 
+  # and re-runs data prep before running optimizer
+  log_msg("[R-7a] Force-reloading data_prep_op from disk to ensure latest data...")
+  if (file.exists(DATA_PREP_PATH)) {
+    reload_success <- load_processed_data()
+    if (!reload_success) {
+      log_msg("[R-7a] WARNING: Could not reload from disk, using in-memory version if available")
+    } else {
+      log_msg("[R-7a] Successfully reloaded data_prep_op from disk")
+    }
+  }
+  
   if (!exists("data_prep_op", envir = .GlobalEnv)) {
     if (!load_processed_data()) {
       return(list(
@@ -1521,14 +1723,33 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
     cat("Rows:", nrow(shiny_ip_optimizer), "\n")
     cat("Columns:", ncol(shiny_ip_optimizer), "\n")
     cat("Column names:", paste(names(shiny_ip_optimizer), collapse=", "), "\n")
-    if ("PPG" %in% names(shiny_ip_optimizer)) {
+    if (ncol(shiny_ip_optimizer) > 0 && "PPG" %in% names(shiny_ip_optimizer)) {
       cat("PPG values:", paste(unique(shiny_ip_optimizer$PPG), collapse=", "), "\n")
-    } else {
+    } else if (ncol(shiny_ip_optimizer) > 0) {
       cat("WARNING: No PPG column found!\n")
       cat("First 5 columns:", paste(names(shiny_ip_optimizer)[1:min(5, ncol(shiny_ip_optimizer))], collapse=", "), "\n")
-      cat("First row values:", paste(as.character(shiny_ip_optimizer[1, 1:min(5, ncol(shiny_ip_optimizer)), with=FALSE]), collapse=", "), "\n")
+      if (nrow(shiny_ip_optimizer) > 0) {
+        cat("First row values:", paste(as.character(shiny_ip_optimizer[1, 1:min(5, ncol(shiny_ip_optimizer)), with=FALSE]), collapse=", "), "\n")
+      }
+    } else {
+      cat("WARNING: Component [[6]] is completely empty (0 columns)!\n")
+      cat("This usually means data_prep failed to create optimizer data.\n")
+      cat("Check if input files have matching data (dates, PPGs, etc.)\n")
     }
     cat("============================================\n\n")
+    
+    # CRITICAL: Validate component [[6]] before proceeding
+    if (is.null(shiny_ip_optimizer) || nrow(shiny_ip_optimizer) == 0 || ncol(shiny_ip_optimizer) == 0) {
+      cat("ERROR: Optimizer data (component [[6]]) is empty! Cannot proceed with optimization.\n")
+      cat("Possible causes:\n")
+      cat("  1. Date mismatch between nielsen data and retailer calendar\n")
+      cat("  2. No PPGs match between cost_bible and nielsen data\n")
+      cat("  3. All data was filtered out during data_prep\n")
+      return(list(
+        success = FALSE, 
+        error = "Optimizer data is empty. Check that input files have matching dates and PPGs."
+      ))
+    }
     
     if (is.null(shiny_ip_nielsen) || nrow(shiny_ip_nielsen) == 0) {
       return(list(success = FALSE, error = "Nielsen data is empty"))
@@ -1886,6 +2107,15 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         
         brand_data <- copy(shiny_opti_data_ip)
         
+        # COGS-TRACE: Check COGS before column renaming
+        if ("COGS_Unit" %in% names(brand_data)) {
+          cat("[COGS-TRACE] brand_data COGS_Unit BEFORE renaming:", paste(head(unique(brand_data$COGS_Unit), 5), collapse=", "), "\n")
+        } else if ("COGS (unit)" %in% names(brand_data)) {
+          cat("[COGS-TRACE] brand_data 'COGS (unit)' BEFORE renaming:", paste(head(unique(brand_data$`COGS (unit)`), 5), collapse=", "), "\n")
+        } else {
+          cat("[COGS-TRACE] WARNING: No COGS column in brand_data! Available:", paste(names(brand_data), collapse=", "), "\n")
+        }
+        
         # DEBUG: Check PPG values in brand_data
         cat("[R-DEBUG] brand_data columns:", paste(head(names(brand_data), 15), collapse=", "), "\n")
         cat("[R-DEBUG] brand_data$PPG unique values:", paste(unique(brand_data$PPG), collapse=", "), "\n")
@@ -2044,6 +2274,10 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         }
         if (!"COGS (unit)" %in% names(brand_data)) {
           brand_data[, `COGS (unit)` := brand_data$`RSP (unit)` * 0.4]
+          cat("[R-DEBUG] COGS (unit) column NOT found in brand_data - using default RSP*0.4\n")
+        } else {
+          cat("[R-DEBUG] COGS (unit) column found in brand_data - values:", 
+              paste(head(unique(brand_data$`COGS (unit)`), 5), collapse=", "), "\n")
         }
         if (!"STP (Unit)" %in% names(brand_data)) {
           brand_data[, `STP (Unit)` := brand_data$`RSP (unit)` * 0.85]

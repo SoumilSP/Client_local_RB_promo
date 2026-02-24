@@ -1,7 +1,7 @@
 
 
 ##########################################################
-## NEW OPTIMIZER RUN: 2026-02-24 21:57:49.252688
+## NEW OPTIMIZER RUN: 2026-02-25 00:26:07.265117
 ##########################################################
 
  
@@ -15,13 +15,13 @@ R PLUMBER API TRACE - /optimizer/run
       goal (code): GM%NR 
       goal (full name): Gross Margin % of NR 
       goal_sign: Max 
-      slot_criterion: Seasonality Trend 
+      slot_criterion: Competitor Promotion Timing 
       run_type: Run Unconstrained Optimization 
       roi_type: Incremental GM ROI 
 ------------------------------------------------------------ 
 [R-4] FILTERS Received: 
       retailer: Carrefour 
-      brand: Shower Gel 
+      brand: DETTOL 
       ppg: D77 
       date_type: monthly 
       start_month: Jan 
@@ -50,6 +50,9 @@ R PLUMBER API TRACE - /optimizer/run
       Final optimization_mode: unconstrained 
 ------------------------------------------------------------ 
 [R-7] Loading processed data from: C:/PromoGen/Single ppg running/RB_PromoGen_R/data/data_prep_op.RData 
+[R-7a] Force-reloading data_prep_op from disk to ensure latest data... 
+Loaded data_prep_op.RData successfully
+[R-7a] Successfully reloaded data_prep_op from disk 
 
 ========== COMPONENT [[6]] DEBUG ==========
 Class: data.table, data.frame 
@@ -112,6 +115,7 @@ PPG values: D77
         - shiny_opti_data_ip filtered to: 10 rows 
 [R-14] Using existing ROI_GM column as ROI 
 [R-15] Preparing brand data directly for optimization()...
+[COGS-TRACE] brand_data COGS_Unit BEFORE renaming: 3.52 
 [R-DEBUG] brand_data columns: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base_Units, RSP_Unit, Net_Cost_Unit, FM%, COGS_Unit, BIP_Case, OID, No_Of_Units 
 [R-DEBUG] brand_data$PPG unique values: D77 
 
@@ -156,6 +160,7 @@ PPG values: D77
         - brand_data rows: 10 
         - brand_data columns: PPG, SECTOR 2, TRADING COMPANY, PRODUCT RANGE, FORMAT, PPG_Description, Tesco_Week_No, Base Sales, RSP (unit), Net Cost (Unit) ...
         - Seq distribution: 0= 5 , 1= 5 
+[R-DEBUG] COGS (unit) column found in brand_data - values: 3.52 
 [R-DEBUG] OID_Unit column found in data
 [R-DEBUG] OID_Unit values: min= 0 , max= 0 , sum= 0 
        - brand_data prepared: 10 rows, 23 columns
@@ -238,9 +243,9 @@ Input parameters:
           - LSM_Promo_Price_Max: 12.1629 
           - Global_Floor_Price: 8 
         - prod_const structure:
-      PPG      BRAND   FORMAT LSM_Promo_Price_Min LSM_Promo_Price_Max
-   <char>     <char>   <char>               <num>               <num>
-1:    D77 Shower Gel Bar Soap                   8             12.1629
+      PPG  BRAND   FORMAT LSM_Promo_Price_Min LSM_Promo_Price_Max
+   <char> <char>   <char>               <num>               <num>
+1:    D77 DETTOL Bar Soap                   8             12.1629
    Non_LSM_Min_Promo_Price Non_LSM_Max_Promo_Price Min_Disc_Slots
                      <num>                   <num>          <int>
 1:                       8                 12.1629             15
@@ -341,8 +346,8 @@ Net Cost (Unit):
   max: 16.44 
 
 COGS (unit) - Cost of Goods Sold:
-  min: 0.1957184 
-  max: 0.1957184 
+  min: 3.52 
+  max: 3.52 
 
 STP (Unit) - Standard Transfer Price:
   min: 16.44 
@@ -393,7 +398,7 @@ Formula: GM_Abs = Net_Revenue - COGS_Total
 ===========================================
 
 ========== 4. NON-PROMOTED WEEKS SUMMARY ==========
-not_prom_GM_Abs: 1951.665 
+not_prom_GM_Abs: 1213.674 
 not_prom_Total_Sales: 222 
 not_prom_BIP: 3649.68 
 not_prom_Gross_Sales: 3000.171 
@@ -427,7 +432,7 @@ Inc_NIS Inf: 0
 
 --- Budget Status Check for PPG: D77 ---
 Budget Status: between 
-Budget Details: Status=between, Investment_ppg=10570.031511474, Min_Inv_Req=1208, Max_Inv_Req=12086510 
+Budget Details: Status=between, Investment_ppg=8215.03149681593, Min_Inv_Req=1208, Max_Inv_Req=12086510 
 ---
 [DEBUG] budget_const columns: PRODUCT RANGE, FORMAT, PPG, PPG_Description, Min_Investment, Max_Investment 
 [DEBUG] budget_const data:
@@ -449,7 +454,7 @@ Key: <PPG>
 Key: <PPG>
       PPG Min_Investment Max_Investment Total_Trade_Investment_prom
    <char>          <num>          <num>                       <num>
-1:    D77           1208       12086510                    9564.974
+1:    D77           1208       12086510                    7209.974
    Total_Trade_Investment_not_prom
                              <num>
 1:                        1005.057
@@ -467,7 +472,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 2 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 2 ) ---
-PPG: D77 | Event ROI: 0.9394651 
+PPG: D77 | Event ROI: 0.4413712 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -482,7 +487,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 3 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 3 ) ---
-PPG: D77 | Event ROI: 0.9394651 
+PPG: D77 | Event ROI: 0.4413712 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -497,7 +502,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 4 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 4 ) ---
-PPG: D77 | Event ROI: 0.9394651 
+PPG: D77 | Event ROI: 0.4413712 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -512,7 +517,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 5 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 5 ) ---
-PPG: D77 | Event ROI: 0.9394651 
+PPG: D77 | Event ROI: 0.4413712 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -527,7 +532,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 6 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 6 ) ---
-PPG: D77 | Event ROI: 0.9394229 
+PPG: D77 | Event ROI: 0.4413514 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -542,7 +547,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 7 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 7 ) ---
-PPG: D77 | Event ROI: 0.9394229 
+PPG: D77 | Event ROI: 0.4413514 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -557,7 +562,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 8 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 8 ) ---
-PPG: D77 | Event ROI: 0.9394229 
+PPG: D77 | Event ROI: 0.4413514 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -572,7 +577,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 9 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 9 ) ---
-PPG: D77 | Event ROI: 0.9394229 
+PPG: D77 | Event ROI: 0.4413514 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -587,7 +592,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 10 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 10 ) ---
-PPG: D77 | Event ROI: 0.9394229 
+PPG: D77 | Event ROI: 0.4413514 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -602,7 +607,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 11 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 11 ) ---
-PPG: D77 | Event ROI: 0.9394088 
+PPG: D77 | Event ROI: 0.4413448 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -617,7 +622,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 12 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 12 ) ---
-PPG: D77 | Event ROI: 0.9394088 
+PPG: D77 | Event ROI: 0.4413448 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -632,7 +637,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 13 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 13 ) ---
-PPG: D77 | Event ROI: 0.9394088 
+PPG: D77 | Event ROI: 0.4413448 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -647,7 +652,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 14 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 14 ) ---
-PPG: D77 | Event ROI: 0.9394088 
+PPG: D77 | Event ROI: 0.4413448 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -662,7 +667,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 15 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 15 ) ---
-PPG: D77 | Event ROI: 0.9394088 
+PPG: D77 | Event ROI: 0.4413448 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -677,7 +682,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 16 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 16 ) ---
-PPG: D77 | Event ROI: 0.939381 
+PPG: D77 | Event ROI: 0.4413317 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -692,7 +697,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 17 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 17 ) ---
-PPG: D77 | Event ROI: 0.939381 
+PPG: D77 | Event ROI: 0.4413317 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -707,7 +712,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 18 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 18 ) ---
-PPG: D77 | Event ROI: 0.939381 
+PPG: D77 | Event ROI: 0.4413317 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -722,7 +727,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 19 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 19 ) ---
-PPG: D77 | Event ROI: 0.939381 
+PPG: D77 | Event ROI: 0.4413317 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -737,7 +742,7 @@ Inc_NIS Inf: 0
 WARNING: Update rejected at iteration 20 | PPG: D77 | Reason: Constraints not improved
 
 --- Constraint Check (Iteration 20 ) ---
-PPG: D77 | Event ROI: 0.939381 
+PPG: D77 | Event ROI: 0.4413317 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -751,7 +756,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 21 ) ---
-PPG: D77 | Event ROI: 0.9391677 
+PPG: D77 | Event ROI: 0.4412315 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -765,7 +770,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 22 ) ---
-PPG: D77 | Event ROI: 0.9391677 
+PPG: D77 | Event ROI: 0.4412315 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -779,7 +784,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 23 ) ---
-PPG: D77 | Event ROI: 0.9391677 
+PPG: D77 | Event ROI: 0.4412315 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -793,7 +798,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 24 ) ---
-PPG: D77 | Event ROI: 0.9391677 
+PPG: D77 | Event ROI: 0.4412315 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -807,7 +812,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 25 ) ---
-PPG: D77 | Event ROI: 0.9391677 
+PPG: D77 | Event ROI: 0.4412315 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -821,7 +826,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 26 ) ---
-PPG: D77 | Event ROI: 0.9388396 
+PPG: D77 | Event ROI: 0.4410773 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -835,7 +840,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 27 ) ---
-PPG: D77 | Event ROI: 0.9388396 
+PPG: D77 | Event ROI: 0.4410773 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -849,7 +854,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 28 ) ---
-PPG: D77 | Event ROI: 0.9388396 
+PPG: D77 | Event ROI: 0.4410773 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -863,7 +868,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 29 ) ---
-PPG: D77 | Event ROI: 0.9388396 
+PPG: D77 | Event ROI: 0.4410773 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -877,7 +882,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 30 ) ---
-PPG: D77 | Event ROI: 0.9388396 
+PPG: D77 | Event ROI: 0.4410773 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -891,7 +896,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 31 ) ---
-PPG: D77 | Event ROI: 0.9341818 
+PPG: D77 | Event ROI: 0.4388891 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -905,7 +910,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 32 ) ---
-PPG: D77 | Event ROI: 0.9341818 
+PPG: D77 | Event ROI: 0.4388891 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -919,7 +924,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 33 ) ---
-PPG: D77 | Event ROI: 0.9341818 
+PPG: D77 | Event ROI: 0.4388891 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -933,7 +938,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 34 ) ---
-PPG: D77 | Event ROI: 0.9341818 
+PPG: D77 | Event ROI: 0.4388891 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -947,7 +952,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 35 ) ---
-PPG: D77 | Event ROI: 0.9341818 
+PPG: D77 | Event ROI: 0.4388891 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -961,7 +966,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 36 ) ---
-PPG: D77 | Event ROI: 0.7898395 
+PPG: D77 | Event ROI: 0.3069612 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -975,7 +980,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 37 ) ---
-PPG: D77 | Event ROI: 0.7898395 
+PPG: D77 | Event ROI: 0.3069612 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -989,7 +994,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 38 ) ---
-PPG: D77 | Event ROI: 0.7898395 
+PPG: D77 | Event ROI: 0.3069612 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1003,7 +1008,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 39 ) ---
-PPG: D77 | Event ROI: 0.7898395 
+PPG: D77 | Event ROI: 0.3069612 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1017,7 +1022,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 40 ) ---
-PPG: D77 | Event ROI: 0.7898395 
+PPG: D77 | Event ROI: 0.3069612 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1031,7 +1036,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 41 ) ---
-PPG: D77 | Event ROI: 0.7898251 
+PPG: D77 | Event ROI: 0.3069556 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1045,7 +1050,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 42 ) ---
-PPG: D77 | Event ROI: 0.7898251 
+PPG: D77 | Event ROI: 0.3069556 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1059,7 +1064,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 43 ) ---
-PPG: D77 | Event ROI: 0.7898251 
+PPG: D77 | Event ROI: 0.3069556 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1073,7 +1078,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 44 ) ---
-PPG: D77 | Event ROI: 0.7898251 
+PPG: D77 | Event ROI: 0.3069556 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1087,7 +1092,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 45 ) ---
-PPG: D77 | Event ROI: 0.7898251 
+PPG: D77 | Event ROI: 0.3069556 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1101,7 +1106,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 46 ) ---
-PPG: D77 | Event ROI: 0.7897894 
+PPG: D77 | Event ROI: 0.3069417 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1115,7 +1120,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 47 ) ---
-PPG: D77 | Event ROI: 0.7897894 
+PPG: D77 | Event ROI: 0.3069417 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1129,7 +1134,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 48 ) ---
-PPG: D77 | Event ROI: 0.7897894 
+PPG: D77 | Event ROI: 0.3069417 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1143,7 +1148,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 49 ) ---
-PPG: D77 | Event ROI: 0.7897894 
+PPG: D77 | Event ROI: 0.3069417 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -1157,7 +1162,7 @@ Inc_NIS Inf: 0
 
 
 --- Constraint Check (Iteration 50 ) ---
-PPG: D77 | Event ROI: 0.7897894 
+PPG: D77 | Event ROI: 0.3069417 
 Base Constraints: 1, 1, 1, 1, 1, 1 
 Update Constraints: 1, 1, 1, 1, 1, 1 
 ---
@@ -3574,7 +3579,7 @@ Inc_NIS Inf: 0
 Total iterations run: 360 
 Total replacements attempted: 350 
 Total updates accepted: 350 
-Total final updates: 13 
+Total final updates: 6 
 Optimization stopped: NO (completed) 
 Output rows: 10 
 KPI iterations tracked: 350 
@@ -3591,12 +3596,12 @@ KPI iterations tracked: 350
         Using ACTUAL opti_const table (same as optimizer used):
        Final Net Revenue: 9843.092 
        Final Gross Sales: 17825.41 
-       Final GM Abs: 9557.844 
+       Final GM Abs: 4712.916 
        Final Volume: 0 
-       Final GM%: 97.1 %
+       Final GM%: 47.88 %
        Final TS%NR: 81.1 %
        Final TS%NIS: 44.78 %
-       Final ROI: 1.1974 
+       Final ROI: 0.5904 
        con 1 ( Scan Net Revenue ): OK (value= 9843.09 , range=[ 0 , 1e+20 ])
        con 2 ( Trade_as_per_NR_model ): UNCONSTRAINED - skipping
        con 3 ( Trade_as_per_NIS_model ): UNCONSTRAINED - skipping
