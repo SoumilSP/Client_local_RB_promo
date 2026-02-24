@@ -2983,6 +2983,8 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
             exc_brand = if (length(opt_result) >= 2) opt_result[[2]] else NULL,
             kpi_iteration = if (length(opt_result) >= 3) opt_result[[3]] else NULL,
             budget_info = if (length(opt_result) >= 4) opt_result[[4]] else NULL,
+            filtered_events = shiny_ip_events,  # Store filtered events for alternate-events endpoint
+            brand_data = brand_data,            # Store brand data for KPI calculation context
             timestamp = Sys.time()
           ), envir = .GlobalEnv)
           
@@ -4298,34 +4300,59 @@ function(ppg = "", tesco_week_no = "") {
   cat("[ALTERNATE-EVENTS] Request for PPG:", ppg, "Week:", tesco_week_no, "\n")
   
   result <- tryCatch({
-    # Check if we have data_prep_op with shiny_ip_events (dp[[9]])
-    if (!exists("data_prep_op", envir = .GlobalEnv)) {
-      cat("[ALTERNATE-EVENTS] data_prep_op not in memory, trying to load...\n")
-      load_processed_data()
+    # ==============================================================
+    # PRIORITY 1: Use filtered_events from optimized_output (same events optimizer used)
+    # This ensures alternates show the EXACT same KPIs the optimizer compared
+    # ==============================================================
+    use_optimized_events <- FALSE
+    shiny_ip_events <- NULL
+    brand_data <- NULL
+    
+    if (exists("optimized_output", envir = .GlobalEnv)) {
+      opt_out <- get("optimized_output", envir = .GlobalEnv)
+      if (!is.null(opt_out$filtered_events) && nrow(opt_out$filtered_events) > 0) {
+        shiny_ip_events <- opt_out$filtered_events
+        brand_data <- opt_out$brand_data
+        use_optimized_events <- TRUE
+        cat("[ALTERNATE-EVENTS] Using filtered_events from optimized_output (", nrow(shiny_ip_events), "rows)\n")
+        cat("[ALTERNATE-EVENTS] This ensures KPIs match what optimizer used!\n")
+      }
     }
     
-    if (!exists("data_prep_op", envir = .GlobalEnv)) {
-      cat("[ALTERNATE-EVENTS] ERROR: data_prep_op still not available after load\n")
-      return(list(error = "Data prep not available - run data processing first", alternates = list()))
+    # ==============================================================
+    # PRIORITY 2: Fall back to data_prep_op[[9]] (shiny_ip_events)
+    # ==============================================================
+    if (!use_optimized_events) {
+      cat("[ALTERNATE-EVENTS] No optimized_output available, using data_prep_op[[9]]...\n")
+      
+      if (!exists("data_prep_op", envir = .GlobalEnv)) {
+        cat("[ALTERNATE-EVENTS] data_prep_op not in memory, trying to load...\n")
+        load_processed_data()
+      }
+      
+      if (!exists("data_prep_op", envir = .GlobalEnv)) {
+        cat("[ALTERNATE-EVENTS] ERROR: data_prep_op still not available after load\n")
+        return(list(error = "Data prep not available - run data processing first", alternates = list()))
+      }
+      
+      dp <- get("data_prep_op", envir = .GlobalEnv)
+      cat("[ALTERNATE-EVENTS] data_prep_op type:", class(dp), "length:", length(dp), "\n")
+      
+      if (!is.list(dp)) {
+        return(list(error = "data_prep_op is not a list", alternates = list()))
+      }
+      
+      if (length(dp) < 9) {
+        return(list(error = paste("data_prep_op has only", length(dp), "elements, need 9"), alternates = list()))
+      }
+      
+      shiny_ip_events <- dp[[9]]
     }
     
-    dp <- get("data_prep_op", envir = .GlobalEnv)
-    cat("[ALTERNATE-EVENTS] data_prep_op type:", class(dp), "length:", length(dp), "\n")
-    
-    if (!is.list(dp)) {
-      return(list(error = "data_prep_op is not a list", alternates = list()))
-    }
-    
-    if (length(dp) < 9) {
-      return(list(error = paste("data_prep_op has only", length(dp), "elements, need 9"), alternates = list()))
-    }
-    
-    # Get shiny_ip_events (final_events) - this contains ALL possible events
-    shiny_ip_events <- dp[[9]]
     cat("[ALTERNATE-EVENTS] shiny_ip_events type:", class(shiny_ip_events), "\n")
     
     if (is.null(shiny_ip_events)) {
-      return(list(error = "shiny_ip_events (dp[[9]]) is NULL", alternates = list()))
+      return(list(error = "shiny_ip_events is NULL", alternates = list()))
     }
     
     if (!is.data.frame(shiny_ip_events) && !is.data.table(shiny_ip_events)) {
@@ -4432,8 +4459,27 @@ function(ppg = "", tesco_week_no = "") {
     oid_unit <- 0.0
     retro_funding_unit <- 0.335
     
-    # Try to get actual values from optimized_output first
-    if (exists("optimized_output", envir = .GlobalEnv)) {
+    # PRIORITY 1: Use brand_data from optimized_output (same context as optimizer)
+    if (!is.null(brand_data) && is.data.frame(brand_data) && nrow(brand_data) > 0) {
+      cat("[ALTERNATE-EVENTS] Using brand_data from optimized_output for base values\n")
+      # Filter by PPG if needed
+      ppg_col <- intersect(names(brand_data), c("PPG", "PRODUCT RANGE"))[1]
+      ppg_brand <- if (!is.na(ppg_col)) brand_data[brand_data[[ppg_col]] == ppg, ] else brand_data
+      if (nrow(ppg_brand) > 0) {
+        if ("Base Sales" %in% names(ppg_brand)) base_sales <- mean(ppg_brand$`Base Sales`, na.rm = TRUE)
+        else if ("Base_Units" %in% names(ppg_brand)) base_sales <- mean(ppg_brand$Base_Units, na.rm = TRUE)
+        if ("COGS (unit)" %in% names(ppg_brand)) cogs_unit <- mean(ppg_brand$`COGS (unit)`, na.rm = TRUE)
+        else if ("COGS_Unit" %in% names(ppg_brand)) cogs_unit <- mean(ppg_brand$COGS_Unit, na.rm = TRUE)
+        if ("RSP (unit)" %in% names(ppg_brand)) rsp_unit <- mean(ppg_brand$`RSP (unit)`, na.rm = TRUE)
+        else if ("RSP_Unit" %in% names(ppg_brand)) rsp_unit <- mean(ppg_brand$RSP_Unit, na.rm = TRUE)
+        if ("OID_Unit" %in% names(ppg_brand)) oid_unit <- mean(ppg_brand$OID_Unit, na.rm = TRUE)
+        cat("[ALTERNATE-EVENTS] Base data from brand_data: base_sales=", round(base_sales, 0), 
+            ", cogs=", round(cogs_unit, 2), ", rsp=", round(rsp_unit, 2), "\n")
+      }
+    }
+    
+    # PRIORITY 2: Try to get actual values from optimized_output.opti_output
+    if ((is.na(base_sales) || base_sales <= 0) && exists("optimized_output", envir = .GlobalEnv)) {
       opt_out <- get("optimized_output", envir = .GlobalEnv)
       if (!is.null(opt_out$opti_output) && is.data.frame(opt_out$opti_output)) {
         opti <- opt_out$opti_output
@@ -4475,18 +4521,21 @@ function(ppg = "", tesco_week_no = "") {
       }
     }
     
-    # Fallback: Try dp[[6]] (optimizer_data) if no optimized_output
+    # PRIORITY 3: Fallback to dp[[6]] (optimizer_data) if no optimized_output
     if (base_sales <= 0 || is.na(base_sales)) {
-      if (length(dp) >= 6 && !is.null(dp[[6]]) && is.data.frame(dp[[6]])) {
-        opti_data <- dp[[6]]
-        ppg_col <- intersect(names(opti_data), c("PPG", "PRODUCT RANGE"))[1]
-        if (!is.na(ppg_col)) {
-          ppg_data <- opti_data[opti_data[[ppg_col]] == ppg, ]
-          if (nrow(ppg_data) > 0) {
-            cat("[ALTERNATE-EVENTS] Using dp[[6]] for base data\n")
-            if ("Base_Units" %in% names(ppg_data)) base_sales <- mean(ppg_data$Base_Units, na.rm = TRUE)
-            if ("COGS_Unit" %in% names(ppg_data)) cogs_unit <- mean(ppg_data$COGS_Unit, na.rm = TRUE)
-            if ("RSP_Unit" %in% names(ppg_data)) rsp_unit <- mean(ppg_data$RSP_Unit, na.rm = TRUE)
+      if (exists("data_prep_op", envir = .GlobalEnv)) {
+        dp <- get("data_prep_op", envir = .GlobalEnv)
+        if (length(dp) >= 6 && !is.null(dp[[6]]) && is.data.frame(dp[[6]])) {
+          opti_data <- dp[[6]]
+          ppg_col <- intersect(names(opti_data), c("PPG", "PRODUCT RANGE"))[1]
+          if (!is.na(ppg_col)) {
+            ppg_data <- opti_data[opti_data[[ppg_col]] == ppg, ]
+            if (nrow(ppg_data) > 0) {
+              cat("[ALTERNATE-EVENTS] Using dp[[6]] for base data\n")
+              if ("Base_Units" %in% names(ppg_data)) base_sales <- mean(ppg_data$Base_Units, na.rm = TRUE)
+              if ("COGS_Unit" %in% names(ppg_data)) cogs_unit <- mean(ppg_data$COGS_Unit, na.rm = TRUE)
+              if ("RSP_Unit" %in% names(ppg_data)) rsp_unit <- mean(ppg_data$RSP_Unit, na.rm = TRUE)
+            }
           }
         }
       }
@@ -4503,6 +4552,17 @@ function(ppg = "", tesco_week_no = "") {
     
     # Build alternates list
     alternates <- list()
+    
+    # Check which KPI columns are available in the source data
+    has_precomputed_kpis <- all(c("Gross_Sales", "Net_Revenue", "Total_Trade_Investment", "GM_Abs") %in% names(ppg_events))
+    
+    cat("[ALTERNATE-EVENTS] Pre-computed KPIs available:", has_precomputed_kpis, "\n")
+    if (has_precomputed_kpis) {
+      cat("[ALTERNATE-EVENTS] Using PRE-COMPUTED KPIs from source data (same as optimizer uses)\n")
+    } else {
+      cat("[ALTERNATE-EVENTS] Computing KPIs using do_calculation.R formulas\n")
+      cat("[ALTERNATE-EVENTS] Available columns:", paste(names(ppg_events), collapse=", "), "\n")
+    }
     
     n_rows <- min(nrow(ppg_events), 50)  # Limit to 50 alternates
     for (i in seq_len(n_rows)) {
@@ -4531,40 +4591,42 @@ function(ppg = "", tesco_week_no = "") {
       # Calculate promo price
       promo_price <- event_rsp * (1 - discount_raw)
       
-      # Get event multiplier for calculating lift
-      event_mult <- as.numeric(row$Event_Multiplier_Tesco %||% row$Event_Multiplier %||% 1.0)
-      
-      # Get display cost
-      display_cost <- as.numeric(row$Display_Cost %||% 0)
-      
       # ==============================================================
-      # CALCULATE KPIs using do_calculation.R formulas
+      # GET KPIs - PREFER PRE-COMPUTED VALUES FROM SOURCE DATA
+      # This ensures alternates show the SAME KPIs the optimizer used
       # ==============================================================
-      # Formula from do_calculation.R:
-      # Event_Lift = Event_Multiplier_Tesco * Base Sales
-      # Total_Sales = Base Sales + Event_Lift
-      # Gross_Sales = Promo_Price * Total_Sales
-      # UNCR_Total = (RSP - Promo_Price) * Total_Sales
-      # OID_Total = OID_Unit * Total_Sales
-      # Retro_Funding_Total = Retro_Funding_Unit * Gross_Sales
-      # Total_Trade_Investment = UNCR_Total + OID_Total + Retro_Funding_Total + Display_Cost
-      # Net_Revenue = Gross_Sales - Total_Trade_Investment
-      # COGS_Total = Total_Sales * COGS_Unit
-      # GM_Abs = Net_Revenue - COGS_Total
-      
-      event_lift <- event_mult * base_sales
-      total_sales <- base_sales + event_lift
-      gross_sales <- promo_price * total_sales
-      uncr_total <- (event_rsp - promo_price) * total_sales
-      oid_total <- oid_unit * total_sales
-      retro_funding_total <- retro_funding_unit * gross_sales
-      total_trade_investment <- uncr_total + oid_total + retro_funding_total + display_cost
-      net_revenue <- gross_sales - total_trade_investment
-      cogs_total <- total_sales * cogs_unit
-      gm_abs <- net_revenue - cogs_total
+      if (has_precomputed_kpis) {
+        # USE pre-computed KPIs directly from source data
+        # These are the exact values the optimizer compared during iteration
+        gross_sales <- as.numeric(row$Gross_Sales %||% 0)
+        net_revenue <- as.numeric(row$Net_Revenue %||% 0)
+        total_trade_investment <- as.numeric(row$Total_Trade_Investment %||% 0)
+        gm_abs <- as.numeric(row$GM_Abs %||% 0)
+        total_sales <- as.numeric(row$Total_Sales %||% 0)
+        event_mult <- as.numeric(row$Event_Multiplier_Tesco %||% row$Event_Multiplier %||% 0)
+      } else {
+        # FALLBACK: Calculate KPIs using do_calculation.R formulas
+        # Only used when pre-computed KPIs are not available
+        event_mult <- as.numeric(row$Event_Multiplier_Tesco %||% row$Event_Multiplier %||% 1.0)
+        display_cost <- as.numeric(row$Display_Cost %||% 0)
+        
+        event_lift <- event_mult * base_sales
+        total_sales <- base_sales + event_lift
+        gross_sales <- promo_price * total_sales
+        uncr_total <- (event_rsp - promo_price) * total_sales
+        oid_total <- oid_unit * total_sales
+        retro_funding_total <- retro_funding_unit * gross_sales
+        total_trade_investment <- uncr_total + oid_total + retro_funding_total + display_cost
+        net_revenue <- gross_sales - total_trade_investment
+        cogs_total <- total_sales * cogs_unit
+        gm_abs <- net_revenue - cogs_total
+      }
       
       # Get ROI from original data (already calculated correctly there)
       roi <- as.numeric(row$R_ROI_GM %||% row$ROI_GM %||% row$ROI %||% 0)
+      
+      # Get Inc_GM_Abs if available (used for ROI calculation verification)
+      inc_gm <- as.numeric(row$Inc_GM_Abs %||% row$R_GM_Inc %||% 0)
       
       alternates[[length(alternates) + 1]] <- list(
         id = i,
@@ -4578,10 +4640,11 @@ function(ppg = "", tesco_week_no = "") {
         NR = round(net_revenue, 0),
         TS = round(total_trade_investment, 0),
         GM = round(gm_abs, 0),
-        # Additional debug fields
-        baseSales = round(base_sales, 0),
+        # Additional fields for transparency
+        incGM = round(inc_gm, 0),
         eventMult = round(event_mult, 2),
-        totalSales = round(total_sales, 0)
+        totalSales = round(total_sales, 0),
+        kpiSource = if (has_precomputed_kpis) "precomputed" else "calculated"
       )
     }
     
