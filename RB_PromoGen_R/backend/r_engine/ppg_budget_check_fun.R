@@ -8,15 +8,15 @@
 budget_check = function(base_file,base_file_2,ppg_to_check,budget_const){
   
   #Get Investment done for PPG - prom_base
-  investment_per_ppg = base_file[,list(Total_Trade_Investment = sum(Total_Trade_Investment, na.rm = TRUE)),by = list(PPG)]
-  #investment_per_ppg = prom_base[,list(Total_Trade_Investment = sum(Total_Trade_Investment)),by = list(PPG)]
+  investment_per_ppg = base_file[,.(Total_Trade_Investment = sum(Total_Trade_Investment, na.rm = TRUE)),by = .(PPG)]
+  #investment_per_ppg = prom_base[,.(Total_Trade_Investment = sum(Total_Trade_Investment)),by = .(PPG)]
   
   #investment_ppg = investment_per_ppg[PPG == "UJB"]
   investment_ppg = investment_per_ppg[PPG == ppg_to_check]
   
   #Get Investment done for PPG - not_prom
-  investment_per_ppg_not_prom = base_file_2[,list(Total_Trade_Investment = sum(Total_Trade_Investment, na.rm = TRUE)),by = list(PPG)]
-  #investment_per_ppg_not_prom = prom_base[,list(Total_Trade_Investment = sum(Total_Trade_Investment)),by = list(PPG)]
+  investment_per_ppg_not_prom = base_file_2[,.(Total_Trade_Investment = sum(Total_Trade_Investment, na.rm = TRUE)),by = .(PPG)]
+  #investment_per_ppg_not_prom = prom_base[,.(Total_Trade_Investment = sum(Total_Trade_Investment)),by = .(PPG)]
   
   investment_ppg_not_prom = investment_per_ppg_not_prom[PPG == ppg_to_check]
   #investment_ppg_not_prom = investment_per_ppg_not_prom[PPG == "UJB"]

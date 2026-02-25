@@ -1,6 +1,19 @@
 recalculate = function(df){
-
-  df[,Event_Lift := Event_Multiplier_Tesco * Base_Units]
+# browser()  # Removed: browser() causes hang in non-interactive API mode
+  df[, Eff_Multiplier :=
+        ifelse(Best_ROI_Flag == "Discount_Only",
+               Event_Multiplier_Discount,
+               ifelse(Best_ROI_Flag == "Display_with_Discount",
+                      Event_Multiplier_Display + Event_Multiplier_Discount,
+                      ifelse(Best_ROI_Flag == "Flyer_with_Discount",
+                             Event_Multiplier_Flyer + Event_Multiplier_Discount,
+                             ifelse(Best_ROI_Flag == "Display and flyer with discount",
+                                    Event_Multiplier_Flyer_Display + Event_Multiplier_Discount,
+                                    0))))
+  ]
+  # browser()  # Removed: browser() causes hang in non-interactive API mode
+  df[,Event_Multiplier_Tesco := Eff_Multiplier]
+  df[,Event_Lift := Eff_Multiplier* Base_Units]
   df[,Total_Sales := Base_Units + Event_Lift]
   df[,Promo_Price := round(RSP_Unit*(1-Discount),1)]
   df[,Retro_Funding_Unit := 0.335]

@@ -1,6 +1,20 @@
 do_calculation = function(tmp){
+ 
   
-  tmp[,Event_Multiplier_Tesco := Event_Multiplier_Tesco * Extra_Slot_Flag]
+tmp[, Best_ROI_Flag := trimws(Best_ROI_Flag)]
+  tmp[, Eff_Multiplier := fcase(
+    Best_ROI_Flag == "Discount_Only",
+    Event_Multiplier_Discount,
+    Best_ROI_Flag == "Display_with_Discount",
+    Event_Multiplier_Display + Event_Multiplier_Discount,
+    Best_ROI_Flag == "Flyer_with_Discount",
+    Event_Multiplier_Flyer + Event_Multiplier_Discount,
+    Best_ROI_Flag %in% c("Display and flyer with discount", "Display_and_Flyer_with_Discount"),
+    Event_Multiplier_Flyer_Display + Event_Multiplier_Discount,
+    default = 0
+  )]
+ 
+  tmp[,Event_Multiplier_Tesco := Eff_Multiplier]
   tmp[,Event_Lift := Event_Multiplier_Tesco * `Base Sales`]
   tmp[,Total_Sales := `Base Sales` + Event_Lift]
   tmp[,Promo_Price := `RSP (unit)`*(1-Discount)]

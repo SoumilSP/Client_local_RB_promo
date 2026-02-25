@@ -1,25 +1,70 @@
-# Rounding_LSM_Function.R
-# Stub file - Replace with actual implementation from user's R codebase
+rounding_lsm = function(x,col1,col2){
 
-# Rounding function for LSM calculations
-rounding_function <- function(data, round_to = 0.05) {
-  # Round to nearest specified value (e.g., 0.05)
-  return(round(data / round_to) * round_to)
-}
-
-# LSM rounding wrapper - used by data_prep_event_list.R
-rounding_lsm <- function(lsm_data, shelf_col, display_col) {
-  # This function rounds LSM shelf and display weeks
-  # In the original code, this likely rounds to specific week boundaries
-  if (is.data.frame(lsm_data) || is.data.table(lsm_data)) {
-    if (shelf_col %in% names(lsm_data)) {
-      lsm_data[[shelf_col]] <- round(as.numeric(lsm_data[[shelf_col]]))
+  # x = lsm_new
+  # col1 = "Max_Shelf_Weeks"
+  # col2 = "Max_Display_Weeks"
+  
+  x[,Shelf_Remainder := get(col1)%%3]
+  x[,Display_Remainder := get(col2)%%3]
+  
+  df_names = names(x)
+  
+  x = data.frame(x)
+  
+  for(i in 1:nrow(x)){ #for
+    
+    #i = 1
+    vec = c(x$Shelf_Remainder[i], x$Display_Remainder[i])
+    
+    if( sum(vec == c(0,0)) == 2 ){
+      x[i,col1] = x[i,col1]
+      x[i,col2] = x[i,col2]
     }
-    if (display_col %in% names(lsm_data)) {
-      lsm_data[[display_col]] <- round(as.numeric(lsm_data[[display_col]]))
+    
+    if( sum(vec == c(0,1)) == 2 ){
+      x[i,col1] = x[i,col1]
+      x[i,col2] = x[i,col2] + 2
     }
-  }
-  return(lsm_data)
-}
+    
+    if( sum(vec == c(1,0)) == 2 ){
+      x[i,col1] = x[i,col1] + 2
+      x[i,col2] = x[i,col2]
+    }
+    
+    if( sum(vec == c(1,1)) == 2 ){
+      x[i,col1] = x[i,col1] - 1
+      x[i,col2] = x[i,col2] + 2
+    }
+    
+    if( sum(vec == c(1,2)) == 2 ){
+      x[i,col1] = x[i,col1] - 1
+      x[i,col2] = x[i,col2] + 1
+    }
+    
+    if( sum(vec == c(2,1)) == 2 ){
+      x[i,col1] = x[i,col1] + 1
+      x[i,col2] = x[i,col2] - 1
+    }
+    
+    if( sum(vec == c(2,2)) == 2 ){
+      x[i,col1] = x[i,col1] + 1
+      x[i,col2] = x[i,col2] + 1
+    }
+    
+    if( sum(vec == c(0,2)) == 2 ){
+      x[i,col1] = x[i,col1]
+      x[i,col2] = x[i,col2] + 1
+    }
+    
+    if( sum(vec == c(2,0)) == 2 ){
+      x[i,col1] = x[i,col1] + 1
+      x[i,col2] = x[i,col2]
+    }
+    
+} #for
 
-cat("Loaded Rounding_LSM_Function.R (stub version)\n")
+  names(x) = df_names
+  
+return(data.table(x))
+  
+}

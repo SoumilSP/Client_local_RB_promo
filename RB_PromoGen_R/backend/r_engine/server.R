@@ -1,7 +1,7 @@
 #### Server function ####
 shinyServer(function(input, output, session) {
   addClass(selector = "body",class = "sidebar-collapse")
-  options(shiny.maxRequestSize=1000*1024^2)
+  options(shiny.maxRequestSize=10000*1024^2)
   #- create userInfo dynamically responsive to URL input 
   #- .../?user=<username>[&status=<online|away|offline>]
   
@@ -115,7 +115,7 @@ shinyServer(function(input, output, session) {
     #   return(NULL)
     # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
     # input_nielsen <- read_excel(paste(inFile$datapath,".xlsx",sep = ""),sheet=1)
-    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//New file.xlsx"))
+    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//RMS NEW.xlsx"))
     return(input_nielsen)
   })
   
@@ -126,7 +126,7 @@ shinyServer(function(input, output, session) {
     #   return(NULL)
     # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
     # input_nielsen <- read_excel(paste(inFile$datapath,".xlsx",sep = ""),sheet = "Data")
-    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//Model Results for 5 SKUs.xlsx"))
+    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//Model Results Sample.xlsx"))
     return(input_nielsen)
   })
   
@@ -137,7 +137,10 @@ shinyServer(function(input, output, session) {
     #   return(NULL)
     # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
     # input_nielsen <- read_excel(paste(inFile$datapath,".xlsx",sep = ""),sheet = "Event_List")
-    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//HEA Events.xlsx"))
+    library(readr)
+    input_nielsen <- read_csv(
+      paste0(SP_reactive_input$folder_path_root, "/HEA Event PC.csv")
+    )
     return(input_nielsen)
   })
   
@@ -148,7 +151,7 @@ shinyServer(function(input, output, session) {
     #   return(NULL)
     # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
     # input_nielsen <- read_excel(paste(inFile$datapath,".xlsx",sep = ""), sheet = 1)
-    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//Updated Cost Bible.xlsx"))
+    input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path_root,"//5 Cost Bible Brand JV.xlsx"))
     return(input_nielsen)
   })
   
@@ -181,7 +184,7 @@ shinyServer(function(input, output, session) {
     #   return(NULL)
     # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
     # input_nielsen <- data.table(read_excel(paste(inFile$datapath,".xlsx",sep = ""), sheet = "LSM"))
-    input_nielsen <- data.table(read_excel(paste0(SP_reactive_input$folder_path_root,"//LSM_New (1).xlsx")))
+    input_nielsen <- data.table(read_excel(paste0(SP_reactive_input$folder_path_root,"//new lsm.xlsx")))
     return(input_nielsen)
   })
   
@@ -300,7 +303,7 @@ shinyServer(function(input, output, session) {
       #   return(NULL)
       # file.rename(inFile$datapath,paste(inFile$datapath,".xlsx",sep = ""))
       # input_nielsen <- read_excel(paste(inFile$datapath,".xlsx",sep = ""), sheet = 1, col_types = "text")
-      input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path,"//EAN to PPG new.xlsx"), col_types = "text")
+      input_nielsen <- read_excel(paste0(SP_reactive_input$folder_path,"//4 EAN to PPG Mapping.xlsx"), col_types = "text")
       return(input_nielsen)
     })
     
@@ -2590,7 +2593,7 @@ shinyServer(function(input, output, session) {
             SP_reactive_input$SP_prod_restrict_time <- SP_reactive_input$SP_opti_prod_restrictions_default
           }
           SP_reactive_input$SP_prod_restrict <- unique(SP_reactive_input$SP_prod_restrict_time[SP_reactive_input$SP_prod_restrict_time$PPG %in% unique(SP_reactive_input$SP_opti_const_ppg$PPG),c("PPG","PPG_Description","Brand","Format","MRRP Max","MRRP Min","RSP_Unit","LY_Investment","Min_Investment","Max_Investment","LSM_Promo_Price_Min","LSM_Promo_Price_Max","Non_LSM_Min_Promo_Price","Non_LSM_Max_Promo_Price","Min_Total_Weeks","Max_Total_Weeks","Non_LSM_Min_Total_Weeks","Non_LSM_Max_Total_Weeks","Min_Display_Weeks","Max_Display_Weeks","Non_LSM_Min_Display_Weeks","Non_LSM_Max_Display_Weeks")])
-          
+          #removed
           #SP_reactive_input$SP_prod_restrict[,sapply(SP_reactive_input$SP_prod_restrict, is.numeric)] <- round(SP_reactive_input$SP_prod_restrict[,sapply(SP_reactive_input$SP_prod_restrict, is.numeric)],2)
           names(SP_reactive_input$SP_prod_restrict) <- c("PPG","PPG Description","Brand","Format","Max MRRP","Min MRRP","RSP","LY Investment","Min Investment","Max Investment","LSM Min Floor Price","LSM Max Floor Price","Unconstrained Min Promo Price","Unconstrained Max Promo Price","LSM Min Total Promo Weeks","LSM Max Total Promo Weeks","Unconstrained Min Total Promo Weeks","Unconstrained Max Total Promo Weeks","LSM Min Display &/or Feature Weeks","LSM Max Display &/or Feature Weeks","Unconstrained Min Display &/or Feature Weeks","Unconstrained Max Display &/or Feature Weeks")
           #SP_reactive_input$SP_prod_restrict <- data.frame("PPG" = unique(SP_reactive_input$SP_opti_const_ppg$PPG),"Min Investment" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))), "Max Investment" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))),"Min Discount %" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))), "Max Discount %" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))), "Min Promo Weeks" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))), "Max Promo Weeks" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))), "Min Display &/or Feature Weeks" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))),"Max Display Weeks" = rep(0,length(unique(SP_reactive_input$SP_opti_nielsen_ppg$PPG))),check.names = FALSE)
@@ -2886,6 +2889,13 @@ shinyServer(function(input, output, session) {
     SP_TPO_list$opti_const <- SP_TPO_list$opti_const[order(-SP_TPO_list$opti_const$`Include the Constraint`,SP_TPO_list$opti_const$`Constraint Order`),]
     SP_TPO_list$opti_const$`Minimum Value` <- as.numeric(SP_TPO_list$opti_const$`Minimum Value`)
     SP_TPO_list$opti_const$`Maximum Value` <- as.numeric(SP_TPO_list$opti_const$`Maximum Value`)
+
+    # Enforce Scale deterministically by KPI to avoid accidental mis-scaling
+    # (e.g., Gross Margin should always be Absolute, not Percent).
+    abs_kpis <- c("Scan Net Revenue", "Scan Gross Sales", "Gross Margin", "Volume Sales")
+    pct_kpis <- c("Gross Margin % of NR", "Trade Spend % of NR", "Trade Spend % of NIS", "Value Market Share")
+    SP_TPO_list$opti_const[SP_TPO_list$opti_const$KPI %in% abs_kpis, "Scale"] <- "Absolute"
+    SP_TPO_list$opti_const[SP_TPO_list$opti_const$KPI %in% pct_kpis, "Scale"] <- "Percent"
     
     ###Converting percentage constraints to absolute values for facts which are not percentages and market share
     SP_TPO_list$opti_const[SP_TPO_list$opti_const$Scale == "Percent" & !(SP_TPO_list$opti_const$KPI %in% c("Gross Margin % of NR","Trade Spend % of NR","Trade Spend % of NIS","Value Market Share")),]$`Minimum Value` <- SP_TPO_list$opti_const[SP_TPO_list$opti_const$Scale == "Percent" & !(SP_TPO_list$opti_const$KPI %in% c("Gross Margin % of NR","Trade Spend % of NR","Trade Spend % of NIS","Value Market Share")),]$`Minimum Value` * SP_TPO_list$opti_const[SP_TPO_list$opti_const$Scale == "Percent" & !(SP_TPO_list$opti_const$KPI %in% c("Gross Margin % of NR","Trade Spend % of NR","Trade Spend % of NIS","Value Market Share")),]$`Last Year Value`/100
@@ -3217,7 +3227,19 @@ shinyServer(function(input, output, session) {
       if(input$SP_opti_run_choice == "Run Complete Optimization"){
         withProgress(message = 'Running LSM Optimization.. (this may take a while)', value = 0, {
           strt_time <- Sys.time()
-          SP_reactive_input$SP_opti_output_lsm <- optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          cat("\n=== Constraints passed to optimization (LSM) ===\n")
+          print(SP_TPO_list$opti_const[, c("Include the Constraint","Constraint Order","KPI","KPI_Mapping","Scale","Last Year Value","Minimum Value","Maximum Value")])
+          cat("=============================================\n\n")
+          SP_reactive_input$SP_opti_output_lsm <- tryCatch({
+            optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          }, warning = function(w) {
+            showNotification(paste("Optimization completed with warnings:", w$message), type = "warning", duration = 10)
+            # Return the result anyway (warnings don't stop execution)
+            optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          }, error = function(e) {
+            showNotification(paste("Optimization failed:", e$message), type = "error", duration = 15)
+            stop(e)
+          })
           end_time <- Sys.time()
           opti_log <- read.csv(paste0(SP_reactive_input$folder_path,"/","optimization_log.csv"),check.names = FALSE)
           opti_log$Function <- as.character(opti_log$Function)
@@ -3243,7 +3265,18 @@ shinyServer(function(input, output, session) {
           ###Tracking time log for running Optimization(Unconstrained)
           
           strt_time <- Sys.time()
-          SP_reactive_input$SP_opti_output <- optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          cat("\n=== Constraints passed to optimization (Unconstrained) ===\n")
+          print(SP_TPO_list$opti_const[, c("Include the Constraint","Constraint Order","KPI","KPI_Mapping","Scale","Last Year Value","Minimum Value","Maximum Value")])
+          cat("========================================================\n\n")
+          SP_reactive_input$SP_opti_output <- tryCatch({
+            optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          }, warning = function(w) {
+            showNotification(paste("Optimization completed with warnings:", w$message), type = "warning", duration = 10)
+            suppressWarnings(optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE))
+          }, error = function(e) {
+            showNotification(paste("Optimization failed:", e$message), type = "error", duration = 15)
+            stop(e)
+          })
           end_time <- Sys.time()
           opti_log <- read.csv(paste0(SP_reactive_input$folder_path,"/","optimization_log.csv"),check.names = FALSE)
           #
@@ -3311,7 +3344,16 @@ shinyServer(function(input, output, session) {
           ###Tracking time log for running Optimization(Unconstrained)
           
           strt_time <- Sys.time()
-          SP_reactive_input$SP_opti_output <- optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          SP_reactive_input$SP_opti_output <- tryCatch({
+            optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          }, warning = function(w) {
+            showNotification(paste("Optimization completed with warnings:", w$message), type = "warning", duration = 10)
+            # Suppress warnings and return result
+            suppressWarnings(optimization(SP_reactive_input$SP_opti_best_seq,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events),data.table(SP_TPO_list$prod_const),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE))
+          }, error = function(e) {
+            showNotification(paste("Optimization failed:", e$message), type = "error", duration = 15)
+            stop(e)
+          })
           end_time <- Sys.time()
           opti_log <- read.csv(paste0(SP_reactive_input$folder_path,"/","optimization_log.csv"),check.names = FALSE)
           #
@@ -3360,7 +3402,15 @@ shinyServer(function(input, output, session) {
         withProgress(message = 'Running LSM constrained Optimization.. (this may take a while)', value = 0, {
           strt_time <- Sys.time()
           
-          SP_reactive_input$SP_opti_output_lsm <- optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          SP_reactive_input$SP_opti_output_lsm <- tryCatch({
+            optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE)
+          }, warning = function(w) {
+            showNotification(paste("Optimization completed with warnings:", w$message), type = "warning", duration = 10)
+            suppressWarnings(optimization(SP_reactive_input$SP_opti_best_seq_lsm,SP_TPO_list$opti_const,data.table(SP_TPO_list$prod_budget),SP_TPO_list$other_sales,SP_TPO_list$goal,SP_TPO_list$sign,data.table(SP_reactive_input$shiny_ip_events_lsm),data.table(SP_TPO_list$prod_const_lsm),SP_TPO_list$ppg_exclude$PPG,SP_reactive_input$SP_opti_const,SP_reactive_input$opti_format_input,SP_reactive_input$opti_ROI_input,SP_TPO_list$other_sales_value,SP_reactive_input$opti_ppg_input,ymd(input$SP_opti_date_start) ,ymd(input$SP_opti_date_end),progress = TRUE))
+          }, error = function(e) {
+            showNotification(paste("Optimization failed:", e$message), type = "error", duration = 15)
+            stop(e)
+          })
           end_time <- Sys.time()
           opti_log <- read.csv(paste0(SP_reactive_input$folder_path,"/","optimization_log.csv"),check.names = FALSE)
           opti_log$Function <- as.character(opti_log$Function)
@@ -3632,6 +3682,7 @@ shinyServer(function(input, output, session) {
         }else if(input$SP_opti_ROI_selection == "Incremental NIS ROI"){
           SP_reactive_input$opti_cal_filtered_lsm[,ROI := sum(R_NIS_Inc)/sum(R_Trade_Inv_Inc), by = c("PPG","Category","Brand","Format","Tesco_Week_No")]
         }
+        browser()
         SP_reactive_input$opti_cal_filtered_lsm$Date <- ymd(SP_reactive_input$opti_cal_filtered_lsm$Week_Ending)
         week_no <- data.frame("Date" = sort(unique(SP_reactive_input$opti_cal_filtered_lsm$Date)),"Week No" = c(1:length(sort(unique(SP_reactive_input$opti_cal_filtered_lsm$Week_Ending)))),check.names = FALSE)
         SP_reactive_input$opti_cal_filtered_lsm <- left_join(SP_reactive_input$opti_cal_filtered_lsm,week_no,by = "Date")
@@ -5775,7 +5826,7 @@ shinyServer(function(input, output, session) {
             columnDefs = list(
               list(visible = FALSE,
                    targets = grep("Event_|Price_", names(SP_reactive_input$opti_cal_dcast_ROI)) - 1),
-              list(width = "70px", targets = c(0,3)),
+              list(width = "40px", targets = c(0,3)),
               list(width = "30px", targets = c(1,2,4)),
               list(width = "10px", targets = slot_ids + 4)   # <‑ CHANGED
             ),
@@ -6507,8 +6558,8 @@ shinyServer(function(input, output, session) {
         SP_reactive_input$opti_cal_filtered[,ROI := sum(R_NIS_Inc)/sum(R_Trade_Inv_Inc), by = c("PPG","Category","Brand","Format","Tesco_Week_No")]
       }
        
-      SP_reactive_input$opti_cal_filtered$Date <- ymd(SP_reactive_input$opti_cal_filtered$Week_Ending)
-      week_no <- data.frame("Date" = sort(unique(SP_reactive_input$opti_cal_filtered$Date)),"Week No" = c(1:length(sort(unique(SP_reactive_input$opti_cal_filtered$Week_Ending)))),check.names = FALSE)
+      SP_reactive_input$opti_cal_filtered$Date <- ymd(SP_reactive_input$opti_cal_filtered$Date)
+      week_no <- data.frame("Date" = sort(unique(SP_reactive_input$opti_cal_filtered$Date)),"Week No" = c(1:length(sort(unique(SP_reactive_input$opti_cal_filtered$Date)))),check.names = FALSE)
       SP_reactive_input$opti_cal_filtered <- left_join(SP_reactive_input$opti_cal_filtered, week_no, by = "Date")
       
       slot_date_col <- if ("Slot_Start_Date" %in% names(SP_reactive_input$opti_cal_filtered)) {
@@ -8948,8 +8999,8 @@ shinyServer(function(input, output, session) {
       names(SP_reactive_input$opti_cal_dcast_tbo_ROI) <- gsub("ROI_cal_","",names(SP_reactive_input$opti_cal_dcast_tbo_ROI))
       names(SP_reactive_input$opti_cal_dcast_tbo_ROI) <- gsub("Tesco_","",names(SP_reactive_input$opti_cal_dcast_tbo_ROI))
       
-      setcolorder(SP_reactive_input$opti_cal_dcast_tbo,c("Format","PPG","PPG_Description","RSP_Unit","LSM Promo Price",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)),paste0("Event","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))),paste0("ROI_cal","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)))))
-      setcolorder(SP_reactive_input$opti_cal_dcast_tbo_ROI,c("Format","PPG","PPG_Description","RSP_Unit","LSM Promo Price",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)),paste0("Event","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))),paste0("Promo_Price","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))))) 
+      setcolorder(SP_reactive_input$opti_cal_dcast_tbo,c("Format","PPG","PPG_Description","RSP_Unit",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)),paste0("Event","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))),paste0("ROI_cal","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)))))
+      setcolorder(SP_reactive_input$opti_cal_dcast_tbo_ROI,c("Format","PPG","PPG_Description","RSP_Unit",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`)),paste0("Event","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))),paste0("Promo_Price","_",sort(unique(SP_reactive_input$opti_cal_filtered_tbo$`Week No`))))) 
       
     }
     SP_reactive_input$optimizer_op_download_tbo <- list("Optimizer Output" = SP_reactive_input$SP_opti_op_prepared_tbo,"Excluded PPG" = SP_reactive_input$SP_opti_exc_brand_tbo, "EAN PPG Mapping" = SP_reactive_input$EAN_PPG_download_tbo)

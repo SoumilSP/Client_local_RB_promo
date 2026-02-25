@@ -11,10 +11,12 @@ update_base = function(prom_update1, event1, row){
   # 
   # prom_update1[row,"Extra_Slot_Flag"] = 1   #making sure the flag is 1
   # prom_update1[row,"Flag_Check_Counter"] = 1   #making sure to update the counter
-  
-  prom_update1[row,c("Discount","Display","Display_Cost","Display_Flag","Event_Multiplier_Tesco","ROI")] = 
-    event1[,c("Discount","Display","Display_Cost","Display_Flag","Event_Multiplier_Tesco","ROI")]
-  
+  prom_update1[row,c("Discount","Display","Display_Cost","Display_Flag",
+                     "Flyer","Flyer_Cost","Flyer_Flag",
+                     "Event_Multiplier_Tesco","ROI")] = 
+    event1[,c("Discount","Display","Display_Cost","Display_Flag",
+              "Flyer","Flyer_Cost","Flyer_Flag",
+              "Event_Multiplier_Tesco","ROI")]
   prom_update1[row,c("Extra_Slot_Flag","Flag_Check_Counter")] = 1
   
   prom_update1 = do_calculation(prom_update1)  #get the results for best event1 ----> at brand level

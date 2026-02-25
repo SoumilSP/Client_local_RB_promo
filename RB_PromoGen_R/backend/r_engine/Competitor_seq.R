@@ -7,7 +7,7 @@ include_comp_promo <- function(nielsen,EDA,HEA_start_date = as.Date("2017-07-22"
   ##Step1 - Finding brands in Nielsen corresponding to top 95% sales
   nielsen$`Week End Date` <- as.Date(nielsen$`Week End Date`)
   nielsen_52 <- nielsen[nielsen$`Week End Date` >= HEA_start_date,]
-  nielsen_52_Brand <- nielsen_52[,list("Value Sales" = sum(Value)),by = list(Brand)]
+  nielsen_52_Brand <- nielsen_52[,.("Value Sales" = sum(Value)),by = .(Brand)]
   nielsen_52_Brand$`Value Share` <- nielsen_52_Brand$`Value Sales`*100/sum(nielsen_52_Brand$`Value Sales`)
   nielsen_52_Brand <- nielsen_52_Brand[order(-`Value Share`),]
   nielsen_52_Brand$`Cum Value Share` <- cumsum(nielsen_52_Brand$`Value Share`)
@@ -57,7 +57,7 @@ include_comp_promo <- function(nielsen,EDA,HEA_start_date = as.Date("2017-07-22"
   ###Step6 - Competitor Mapping for Airwick PPG
   EDA_own_brand <- unique(EDA_Brand_req_RSP[EDA_Brand_req_RSP$BRAND == (brand),c("Modeled Item Description","Market","BRAND","BRAND 2 - EXTENSION","BRAND 3 - ITEM IDENTIFIER","CATEGORY",
                                                                                  "MANUFACTURER","SUPER GROUP","TRADING COMPANY","WEIGHT VOLUME BASE","RSP")])
-  nielsen_52[,"Total_Units" := sum(Units),list(by = ITEM_NAME)]
+  nielsen_52[,"Total_Units" := sum(Units),.(by = ITEM_NAME)]
   EDA_own_brand <- left_join(EDA_own_brand,unique(nielsen_52[,c("ITEM_NAME","PPG","EAN Code","Total_Units")]),by = c("Modeled Item Description"="ITEM_NAME"))
   EDA_own_brand$weight <- EDA_own_brand$`WEIGHT VOLUME BASE`
   EDA_own_brand$weight <- gsub("ML","",EDA_own_brand$weight)
@@ -65,7 +65,7 @@ include_comp_promo <- function(nielsen,EDA,HEA_start_date = as.Date("2017-07-22"
   EDA_own_brand$weight <- gsub("NA",0,EDA_own_brand$weight)
   EDA_own_brand$weight <- as.numeric(EDA_own_brand$weight)
   
-  EDA_own_brand_PPG <- setDT(EDA_own_brand)[,list("Total_Units" = sum(Total_Units),"RSP" = sum(Total_Units * RSP)/sum(Total_Units),"weight" = sum(Total_Units * weight)/sum(Total_Units)),by = list(`BRAND 3 - ITEM IDENTIFIER`,CATEGORY,`SUPER GROUP`,PPG)]
+  EDA_own_brand_PPG <- setDT(EDA_own_brand)[,.("Total_Units" = sum(Total_Units),"RSP" = sum(Total_Units * RSP)/sum(Total_Units),"weight" = sum(Total_Units * weight)/sum(Total_Units)),by = .(`BRAND 3 - ITEM IDENTIFIER`,CATEGORY,`SUPER GROUP`,PPG)]
   
   PPG_Mapping <- data.frame()
   
@@ -88,9 +88,9 @@ include_comp_promo <- function(nielsen,EDA,HEA_start_date = as.Date("2017-07-22"
   Item_Event_full <- Item_Event_full[!(is.na(Item_Event_full$PPG_Comp)),]
   
   ###PPG Level
-  PPG_Event <- setDT(Item_Event_full)[,list("Flag_HEA" = sum(Flag_HEA), "Total_Units" = sum(Units)),by = list(PPG_Comp,`Week End Date`)]
+  PPG_Event <- setDT(Item_Event_full)[,.("Flag_HEA" = sum(Flag_HEA), "Total_Units" = sum(Units)),by = .(PPG_Comp,`Week End Date`)]
   PPG_Event$Flag_HEA <- ifelse(PPG_Event$Flag_HEA >= 1,1,0)
-  Comp_PPG_Units_mapping <- PPG_Event[,list("Total_Units" = sum(Total_Units)),by = list(PPG_Comp)]
+  Comp_PPG_Units_mapping <- PPG_Event[,.("Total_Units" = sum(Total_Units)),by = .(PPG_Comp)]
   
   setnames(PPG_Event,"PPG_Comp","ITEM_NAME")
   
@@ -100,7 +100,7 @@ include_comp_promo <- function(nielsen,EDA,HEA_start_date = as.Date("2017-07-22"
     #print(item)
     Item_Event <- PPG_Event[PPG_Event$ITEM_NAME == item,]
     Item_Event$`Week End Date` <- as.Date(Item_Event$`Week End Date`)
-    # Item_Event <- setDT(Item_Event)[,list("Flag_HEA" = sum(Flag_HEA)),by = list(ITEM_NAME,`Week End Date`)]
+    # Item_Event <- setDT(Item_Event)[,.("Flag_HEA" = sum(Flag_HEA)),by = .(ITEM_NAME,`Week End Date`)]
     # Item_Event$Flag_HEA <- ifelse(Item_Event$Flag_HEA > 0, 1,0)
     Item_Event <- Item_Event[order(`Week End Date`),]
     Item_Event$Event_gap <- (Item_Event$Flag_HEA - lag(Item_Event$Flag_HEA))

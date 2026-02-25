@@ -1,20 +1,21 @@
-library(shiny)
-library(shinydashboard)
-library(shinyjs)
-ui <- shinydashboard::dashboardPage(
-
+ui <- ygdashboard::dashboardPage(
+  
   skin = "black",
+  
   title = "PromoGen",
-
-  #---------------- HEADER ----------------#
+  
+  #- header
   dashboardHeader(
+    
     title = HTML(paste0(
-      '<span class="logo-lg"><a href="#"><img src="reckitt_logo_MASTER_RGB.png" height="35" width="170"></a></span>',
-      '<span class="logo-mini"><a href="#"><img src="reckitt_logo_MASTER_RGB.png" height="40" width="50"></a></span>'
+      '<span class = "logo-lg"><a href="#"><img src="reckitt_logo_MASTER_RGB.png" alt="Reckitt Benckiser" height="35" width="170"></a></span>',
+      '<span class = "logo-mini"><a href="#"><img src="reckitt_logo_MASTER_RGB.png" alt="RB" height="40" width="50"></a></font></span>'
     )),
-    titleWidth = 300,
-    user = userOutput("user")
-  ),
+    
+    titleWidth = 300, 
+    
+    user = userOutput("user") # user = dashboardUser(),
+    
   ),
   
   #- sidebar
@@ -1468,23 +1469,7 @@ ui <- shinydashboard::dashboardPage(
           )
         ),
   #- footer
-     #---------------- FOOTER ----------------#
-    tags$footer(
-      style = "
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        background-color: #222d32;
-        color: white;
-        text-align: center;
-        padding: 6px;
-        z-index: 1000;
-      ",
-      uiOutput("dynamicFooter")
-    )
-  )
-)
-,
+  footerOutput(outputId = "dynamicFooter"),
   
   #- controlbar
   controlbar = NULL

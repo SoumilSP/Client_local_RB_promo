@@ -4,10 +4,13 @@ source("ppg_budget_check_fun.R")
 source("prom_update_fun.R")
 source("sequence_generator_function.R")
 
-# Load gtools for smartbind() used at line ~1986
-suppressPackageStartupMessages(library(gtools))
-
-#####DEBUG: Helper function to save debug data
+# Load parallel processing libraries
+if(!require(parallel)) install.packages("parallel")
+if(!require(foreach)) install.packages("foreach")
+if(!require(doParallel)) install.packages("doParallel")
+library(parallel)
+library(foreach)
+library(doParallel)
 save_debug_data <- function(iteration, data, filename_prefix = "debug"){
   filename <- paste0(filename_prefix, "_iter_", iteration, ".RData")
   tryCatch({
@@ -22,90 +25,108 @@ save_debug_data <- function(iteration, data, filename_prefix = "debug"){
 DEBUG_MODE <- TRUE  # Set to TRUE to enable interactive debugging
 
 
+
+
 best_seq <- function(shiny_data,shiny_slot,competition_slot,include_competition,tesco_slot,start_date,end_date){
   
   #0.1 Filter data between the time range - USING DYNAMIC SLOT LOGIC
   # REMOVED week end date logic - now using slot-based dates directly
   
-  cat("\n[BEST_SEQ] Starting best_seq() function\n")
-  cat("[BEST_SEQ] Input tesco_slot rows:", nrow(tesco_slot), "\n")
-  cat("[BEST_SEQ] Input start_date:", as.character(start_date), "class:", class(start_date), "\n")
-  cat("[BEST_SEQ] Input end_date:", as.character(end_date), "class:", class(end_date), "\n")
-  
-  # CRITICAL: Save original PPG values BEFORE any processing
-  # This ensures we can restore them even if cbind/merge operations corrupt them
-  original_ppg_values <- as.character(unique(shiny_data$PPG))
-  cat("[BEST_SEQ] Original PPG values saved:", paste(original_ppg_values, collapse=", "), "\n")
-  
-  # Ensure tesco_slot dates are properly formatted as Date objects
+  # Ensure tesco_slot dates are properly formatted
+  # Only parse if not already Date objects - dates may come pre-parsed from plumber_api.R
   if (!inherits(tesco_slot$`Start Date`, "Date")) {
-    # Try to parse dates - handle multiple formats
-    tryCatch({
-      tesco_slot$`Start Date` = as.Date(tesco_slot$`Start Date`)
-    }, error = function(e) {
-      tryCatch({
-        tesco_slot$`Start Date` = dmy(tesco_slot$`Start Date`)
-      }, error = function(e2) {
-        tesco_slot$`Start Date` = ymd(tesco_slot$`Start Date`)
-      })
-    })
+    # Try dmy first (dd/mm/yyyy), then ymd (yyyy-mm-dd) as fallback
+    parsed_start <- suppressWarnings(dmy(tesco_slot$`Start Date`))
+    if (all(is.na(parsed_start))) {
+      parsed_start <- suppressWarnings(ymd(tesco_slot$`Start Date`))
+    }
+    if (all(is.na(parsed_start))) {
+      parsed_start <- suppressWarnings(as.Date(tesco_slot$`Start Date`))
+    }
+    tesco_slot$`Start Date` <- parsed_start
   }
+  
   if (!inherits(tesco_slot$`End Date`, "Date")) {
-    tryCatch({
-      tesco_slot$`End Date` = as.Date(tesco_slot$`End Date`)
-    }, error = function(e) {
-      tryCatch({
-        tesco_slot$`End Date` = dmy(tesco_slot$`End Date`)
-      }, error = function(e2) {
-        tesco_slot$`End Date` = ymd(tesco_slot$`End Date`)
-      })
-    })
+    parsed_end <- suppressWarnings(dmy(tesco_slot$`End Date`))
+    if (all(is.na(parsed_end))) {
+      parsed_end <- suppressWarnings(ymd(tesco_slot$`End Date`))
+    }
+    if (all(is.na(parsed_end))) {
+      parsed_end <- suppressWarnings(as.Date(tesco_slot$`End Date`))
+    }
+    tesco_slot$`End Date` <- parsed_end
   }
   
-  # Ensure start_date and end_date are Date objects
-  start_date = as.Date(start_date)
-  end_date = as.Date(end_date)
+  # Ensure start_date and end_date parameters are Date objects
+  if (!inherits(start_date, "Date")) {
+    start_date <- suppressWarnings(ymd(start_date))
+    if (is.na(start_date)) start_date <- suppressWarnings(dmy(start_date))
+    if (is.na(start_date)) start_date <- suppressWarnings(as.Date(start_date))
+  }
+  if (!inherits(end_date, "Date")) {
+    end_date <- suppressWarnings(ymd(end_date))
+    if (is.na(end_date)) end_date <- suppressWarnings(dmy(end_date))
+    if (is.na(end_date)) end_date <- suppressWarnings(as.Date(end_date))
+  }
   
-  cat("[BEST_SEQ] tesco_slot Start Date range:", as.character(min(tesco_slot$`Start Date`, na.rm=TRUE)), 
-      "to", as.character(max(tesco_slot$`Start Date`, na.rm=TRUE)), "\n")
-  cat("[BEST_SEQ] tesco_slot End Date range:", as.character(min(tesco_slot$`End Date`, na.rm=TRUE)), 
-      "to", as.character(max(tesco_slot$`End Date`, na.rm=TRUE)), "\n")
+  # Use slot-based logic instead of week end date logic
+  # First try exact match
+  slot_start = tesco_slot$Slot[tesco_slot$`Start Date` == start_date]
+  slot_end = tesco_slot$Slot[tesco_slot$`End Date` == end_date]
   
-  # Find slot_start and slot_end - use >= and <= for date matching since exact match may fail
-  slot_start = tesco_slot$Slot[tesco_slot$`Start Date` >= start_date][1]
-  slot_end = tesco_slot$Slot[tesco_slot$`End Date` <= end_date]
-  slot_end = slot_end[length(slot_end)]  # Get last matching slot
+  # ROBUST FALLBACK: If exact match fails, find closest slots by date range
+  if (length(slot_start) == 0 || length(slot_end) == 0) {
+    cat("[best_seq] Exact date match failed, using range-based slot detection...\n")
+    
+    # Find slot whose Start Date is closest to (but not after) start_date
+    valid_start_slots <- tesco_slot$Slot[tesco_slot$`Start Date` <= start_date]
+    if (length(valid_start_slots) > 0) {
+      slot_start <- max(valid_start_slots)
+    } else {
+      # Use first available slot
+      slot_start <- min(tesco_slot$Slot, na.rm = TRUE)
+    }
+    
+    # Find slot whose End Date is closest to (but not before) end_date
+    valid_end_slots <- tesco_slot$Slot[tesco_slot$`End Date` >= end_date]
+    if (length(valid_end_slots) > 0) {
+      slot_end <- min(valid_end_slots)
+    } else {
+      # Use last available slot
+      slot_end <- max(tesco_slot$Slot, na.rm = TRUE)
+    }
+    
+    cat("[best_seq] Range-based detection: slot_start =", slot_start, ", slot_end =", slot_end, "\n")
+  }
   
-  # Fallback: if no match found, use first and last slots
+  # Ensure slot_start and slot_end are single values
+  if (length(slot_start) > 1) slot_start <- slot_start[1]
+  if (length(slot_end) > 1) slot_end <- slot_end[length(slot_end)]
+  
+  # Final validation - ensure we have valid single values
   if (length(slot_start) == 0 || is.na(slot_start)) {
-    cat("[BEST_SEQ] WARNING: No slot_start found, using first slot\n")
-    slot_start = min(tesco_slot$Slot, na.rm = TRUE)
+    slot_start <- min(tesco_slot$Slot, na.rm = TRUE)
+    cat("[best_seq] WARNING: Using minimum slot as start:", slot_start, "\n")
   }
   if (length(slot_end) == 0 || is.na(slot_end)) {
-    cat("[BEST_SEQ] WARNING: No slot_end found, using last slot\n")
-    slot_end = max(tesco_slot$Slot, na.rm = TRUE)
+    slot_end <- max(tesco_slot$Slot, na.rm = TRUE)
+    cat("[best_seq] WARNING: Using maximum slot as end:", slot_end, "\n")
   }
   
-  cat("[BEST_SEQ] slot_start:", slot_start, ", slot_end:", slot_end, "\n")
+  # Ensure slot_start <= slot_end
+  if (slot_start > slot_end) {
+    temp <- slot_start
+    slot_start <- slot_end
+    slot_end <- temp
+    cat("[best_seq] WARNING: Swapped slot_start and slot_end\n")
+  }
   
   all_slot = seq(slot_start, slot_end, 1)
-  cat("[BEST_SEQ] all_slot count:", length(all_slot), "\n")
   
   
   # Filter data based on slot numbers (not week end dates)
-  cat("[BEST_SEQ] shiny_data rows BEFORE filter:", nrow(shiny_data), "\n")
-  cat("[BEST_SEQ] shiny_data Tesco_Week_No values:", paste(head(unique(shiny_data$Tesco_Week_No), 10), collapse=", "), "\n")
-  cat("[BEST_SEQ] all_slot values:", paste(head(all_slot, 10), collapse=", "), "\n")
-  
   shiny_data = shiny_data[Tesco_Week_No %in% all_slot]
   competition_slot = competition_slot[`Slot No` %in% all_slot]
-  
-  cat("[BEST_SEQ] shiny_data rows AFTER filter:", nrow(shiny_data), "\n")
-  if (nrow(shiny_data) == 0) {
-    cat("[BEST_SEQ] WARNING: All rows filtered out! Check Tesco_Week_No vs all_slot mismatch\n")
-  } else {
-    cat("[BEST_SEQ] PPG values after filter:", paste(unique(shiny_data$PPG), collapse=", "), "\n")
-  }
   
   # Create slot metadata with start/end dates and duration for dynamic slot handling
   slot_metadata = tesco_slot[Slot %in% all_slot, .(Slot, `Start Date`, `End Date`)]
@@ -119,21 +140,6 @@ best_seq <- function(shiny_data,shiny_slot,competition_slot,include_competition,
   #0.2 Create Promo Seq File
   #slots = length(all_slot)e
   slots = length(all_slot[all_slot != 0]) #quick fix 12th April 2019
-  
-  # CRITICAL: Limit slots to prevent memory explosion
-  # sequence_generator creates 2^slots combinations, so:
-  # 20 slots = 1 million combinations (OK)
-  # 25 slots = 33 million combinations (borderline)
-  # 30 slots = 1 billion combinations (will crash)
-  # 36 slots = 68 billion combinations (impossible)
-  MAX_SLOTS_FOR_SEQ_GEN <- 20
-  if (slots > MAX_SLOTS_FOR_SEQ_GEN) {
-    cat("[BEST_SEQ] WARNING: Too many slots (", slots, ") for sequence_generator.\n")
-    cat("[BEST_SEQ] Limiting to", MAX_SLOTS_FOR_SEQ_GEN, "slots to prevent memory issues.\n")
-    cat("[BEST_SEQ] 2^", slots, "=", format(2^slots, big.mark=",", scientific=FALSE), "combinations would require too much memory.\n")
-    slots <- MAX_SLOTS_FOR_SEQ_GEN
-  }
-  cat("[BEST_SEQ] Using", slots, "slots for sequence generation (2^", slots, "=", format(2^slots, big.mark=","), "combinations)\n")
   
   promo_seq = sequence_generator(slots)
   
@@ -280,16 +286,9 @@ best_seq <- function(shiny_data,shiny_slot,competition_slot,include_competition,
       
       #Best_Seq = as.integer(as.numeric(Best_Seq) > 0)
       
-      # CRITICAL FIX: Save PPG before cbind which can corrupt it
-      saved_ppg <- as.character(one_ppg$PPG)
       
       #5 Merge PPG data with best seq
       ppg_best_seq = cbind(one_ppg[,1:21],Best_Seq)
-      
-      # Restore PPG after cbind if it got corrupted
-      if (is.numeric(ppg_best_seq[[1]]) || any(is.na(ppg_best_seq[[1]]))) {
-        ppg_best_seq[[1]] <- saved_ppg
-      }
       
       #6 Add slot 0 in ppg_best_seq
       zero_slot = one_ppg_zero[,Best_Seq := 0L]
@@ -336,33 +335,12 @@ best_seq <- function(shiny_data,shiny_slot,competition_slot,include_competition,
   
   
   
-  names(opt_ip) = c("PPG","SECTOR 2","TRADING COMPANY","PRODUCT RANGE","FORMAT" ,"PPG_Description","Tesco_Week_No","Base Sales",
+  names(opt_ip) = c("Tesco_Week_No","PPG","SECTOR 2","TRADING COMPANY","PRODUCT RANGE","FORMAT" ,"PPG_Description","Base Sales",
                     "RSP (unit)","Net Cost (Unit)", "FM%","COGS (unit)","BIP (Case)","OID","No_Of_Units","STP (Unit)",
                     "OID_Unit","UNCR_Unit","Start Date","End Date","Duration","Seq")
   
-  # DEBUG: Trace PPG values at each stage
-  cat("\n========== PPG TRACING IN BEST_SEQ ==========\n")
-  cat("[TRACE] opt_ip$PPG (col 1) after rename:\n")
-  cat("        - class:", class(opt_ip$PPG), "\n")
-  cat("        - unique values:", paste(head(unique(opt_ip$PPG), 10), collapse=", "), "\n")
-  cat("[TRACE] shiny_data$PPG (original input):\n")
-  cat("        - class:", class(shiny_data$PPG), "\n")
-  cat("        - unique values:", paste(unique(shiny_data$PPG), collapse=", "), "\n")
-  cat("============================================\n")
-  
-  # CRITICAL FIX: If PPG became numeric (row numbers), restore from saved original values
-  if (is.numeric(opt_ip$PPG) || all(opt_ip$PPG %in% 1:1000) || any(is.na(opt_ip$PPG))) {
-    cat("[BEST_SEQ-FIX] PPG values are corrupt (numeric/NA), restoring from saved original values\n")
-    # Use the saved original_ppg_values from the beginning of this function
-    if (exists("original_ppg_values") && length(original_ppg_values) > 0 && !is.na(original_ppg_values[1])) {
-      opt_ip[, PPG := as.character(original_ppg_values[1])]
-      cat("[BEST_SEQ-FIX] Restored opt_ip$PPG to:", paste(unique(opt_ip$PPG), collapse=", "), "\n")
-    } else {
-      cat("[BEST_SEQ-FIX] WARNING: No original PPG values available to restore!\n")
-    }
-  }
-  
   # Final safety: ensure the output promo decision is strict binary 0/1
+  
   
   opt_ip[,VAT := 0.2]
   
@@ -375,12 +353,89 @@ best_seq <- function(shiny_data,shiny_slot,competition_slot,include_competition,
 best_seq_cannib <- function(shiny_data,slot,canibalize,tesco_slot,start_date,end_date){
   #0.1 Filter data between the time range - USING DYNAMIC SLOT LOGIC
   # Ensure tesco_slot dates are properly formatted
-  tesco_slot$`Start Date` = dmy(tesco_slot$`Start Date`)
-  tesco_slot$`End Date` = dmy(tesco_slot$`End Date`)
+  # Only parse if not already Date objects - dates may come pre-parsed from plumber_api.R
+  if (!inherits(tesco_slot$`Start Date`, "Date")) {
+    parsed_start <- suppressWarnings(dmy(tesco_slot$`Start Date`))
+    if (all(is.na(parsed_start))) {
+      parsed_start <- suppressWarnings(ymd(tesco_slot$`Start Date`))
+    }
+    if (all(is.na(parsed_start))) {
+      parsed_start <- suppressWarnings(as.Date(tesco_slot$`Start Date`))
+    }
+    tesco_slot$`Start Date` <- parsed_start
+  }
   
+  if (!inherits(tesco_slot$`End Date`, "Date")) {
+    parsed_end <- suppressWarnings(dmy(tesco_slot$`End Date`))
+    if (all(is.na(parsed_end))) {
+      parsed_end <- suppressWarnings(ymd(tesco_slot$`End Date`))
+    }
+    if (all(is.na(parsed_end))) {
+      parsed_end <- suppressWarnings(as.Date(tesco_slot$`End Date`))
+    }
+    tesco_slot$`End Date` <- parsed_end
+  }
+  
+  # Ensure start_date and end_date parameters are Date objects
+  if (!inherits(start_date, "Date")) {
+    start_date <- suppressWarnings(ymd(start_date))
+    if (is.na(start_date)) start_date <- suppressWarnings(dmy(start_date))
+    if (is.na(start_date)) start_date <- suppressWarnings(as.Date(start_date))
+  }
+  if (!inherits(end_date, "Date")) {
+    end_date <- suppressWarnings(ymd(end_date))
+    if (is.na(end_date)) end_date <- suppressWarnings(dmy(end_date))
+    if (is.na(end_date)) end_date <- suppressWarnings(as.Date(end_date))
+  }
+  
+  # First try exact match
   slot_start = tesco_slot$Slot[tesco_slot$`Start Date` == start_date]
   slot_end = tesco_slot$Slot[tesco_slot$`End Date` == end_date]
-  all_slot = seq(slot_start,slot_end,1)
+  
+  # ROBUST FALLBACK: If exact match fails, find closest slots by date range
+  if (length(slot_start) == 0 || length(slot_end) == 0) {
+    cat("[best_seq_cannib] Exact date match failed, using range-based slot detection...\n")
+    
+    valid_start_slots <- tesco_slot$Slot[tesco_slot$`Start Date` <= start_date]
+    if (length(valid_start_slots) > 0) {
+      slot_start <- max(valid_start_slots)
+    } else {
+      slot_start <- min(tesco_slot$Slot, na.rm = TRUE)
+    }
+    
+    valid_end_slots <- tesco_slot$Slot[tesco_slot$`End Date` >= end_date]
+    if (length(valid_end_slots) > 0) {
+      slot_end <- min(valid_end_slots)
+    } else {
+      slot_end <- max(tesco_slot$Slot, na.rm = TRUE)
+    }
+    
+    cat("[best_seq_cannib] Range-based detection: slot_start =", slot_start, ", slot_end =", slot_end, "\n")
+  }
+  
+  # Ensure slot_start and slot_end are single values
+  if (length(slot_start) > 1) slot_start <- slot_start[1]
+  if (length(slot_end) > 1) slot_end <- slot_end[length(slot_end)]
+  
+  # Final validation
+  if (length(slot_start) == 0 || is.na(slot_start)) {
+    slot_start <- min(tesco_slot$Slot, na.rm = TRUE)
+    cat("[best_seq_cannib] WARNING: Using minimum slot as start:", slot_start, "\n")
+  }
+  if (length(slot_end) == 0 || is.na(slot_end)) {
+    slot_end <- max(tesco_slot$Slot, na.rm = TRUE)
+    cat("[best_seq_cannib] WARNING: Using maximum slot as end:", slot_end, "\n")
+  }
+  
+  # Ensure slot_start <= slot_end
+  if (slot_start > slot_end) {
+    temp <- slot_start
+    slot_start <- slot_end
+    slot_end <- temp
+    cat("[best_seq_cannib] WARNING: Swapped slot_start and slot_end\n")
+  }
+  
+  all_slot = seq(slot_start, slot_end, 1)
   shiny_data = shiny_data[Tesco_Week_No %in% all_slot]
   
   # Create slot metadata with start/end dates and duration
@@ -390,14 +445,6 @@ best_seq_cannib <- function(shiny_data,slot,canibalize,tesco_slot,start_date,end
   
   #0.2 Create Promo Seq File
   slots = length(all_slot)
-  
-  # CRITICAL: Limit slots to prevent memory explosion (same as best_seq)
-  MAX_SLOTS_FOR_SEQ_GEN <- 20
-  if (slots > MAX_SLOTS_FOR_SEQ_GEN) {
-    cat("[BEST_SEQ_CANNIB] WARNING: Limiting slots from", slots, "to", MAX_SLOTS_FOR_SEQ_GEN, "\n")
-    slots <- MAX_SLOTS_FOR_SEQ_GEN
-  }
-  
   promo_seq = sequence_generator(slots)
   
   # SLOT-BASED: Convert slot constraints to slots if input is in weeks
@@ -798,12 +845,14 @@ time_based_prod_const <- function(prod_res,ly_kpi,start_date,end_date,tesco_slot
   #                  by = c("PPG", "Category", "Manufacturer", "Brand", "Format", "PPG_Description"), all.x = T)
   
   
-  #Add Min and Max Investment
-  prod_res[,Min_Investment := 0.1* LY_Investment]
-  prod_res[,Max_Investment := 10*LY_Investment]
+  # Add Min and Max Investment
+  # Relax minimum investment: let optimization & constraints decide how much to spend,
+  # using only a maximum guardrail per PPG.
+  prod_res[, Min_Investment := 0]
+  prod_res[, Max_Investment := 10 * LY_Investment]
   
   
-  #write.csv(prod_res,"4 Investment_and_Slot_restrictions_Time_Based.csv", row.names = F)
+  write.csv(prod_res,"4 Investment_and_Slot_restrictions_Time_Based.csv", row.names = F)
   return(prod_res)
 }
 
@@ -812,15 +861,21 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   # REMOVED: Week end date logic - no longer using ceiling_date
   # start_date = ceiling_date(start_date,"week",week_start = 2)   # 2 means week ending on Tuesday
   
-  # FIX: Do NOT overwrite PPG with SECTOR 2! 
-  # The original line "brand$PPG=brand$`SECTOR 2`" was destroying the actual PPG values.
-  # Commenting out these reassignments as they seem incorrect:
-  # brand$PPG=brand$`SECTOR 2`                                    # REMOVED - this was the bug!
-  # brand$`SECTOR 2`=unique(events_base$`SECTOR 2`)               # REMOVED
-  # brand$`TRADING COMPANY`=unique(events_base$`TRADING COMPANY`) # REMOVED
-  # brand$`PRODUCT RANGE`=unique(events_base$`PRODUCT RANGE`)     # REMOVED
-  # brand$FORMAT=unique(events_base$FORMAT)                       # REMOVED
-  # brand$PPG_Description=unique(events_base$PPG_Description)     # REMOVED
+  if(length(include_ppg) == 1 && grepl("ALL", include_ppg, ignore.case = TRUE)) {
+    # Get all unique PPGs from the data sources
+    all_ppgs = unique(c(
+      unique(brand$PPG),
+      unique(budget_const$PPG),
+      unique(events_base$PPG),
+      unique(ppg_slots$PPG)
+    ))
+    # Remove any NA values
+    all_ppgs = all_ppgs[!is.na(all_ppgs)]
+    include_ppg = all_ppgs
+  }
+  
+   
+  
   
   # Filter last year KPI data based on date range (not week end dates)
   last_year_kpi[,current_year_date := ymd(current_year_date)]   #date formatting
@@ -885,56 +940,14 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   #inserting ID for each row - later used in logic
   brand[,"Track ID"] = row.names(brand)
-  brand$Tesco_Week_No=brand$`Track ID`
-  
-  #DEBUG: Check PPG values before filtering
-  cat("\n========== PPG DEBUG ==========\n")
-  cat("PPG column exists:", "PPG" %in% names(brand), "\n")
-  if ("PPG" %in% names(brand)) {
-    cat("Unique PPG values in brand BEFORE filter:", paste(unique(brand$PPG), collapse=", "), "\n")
-    cat("PPG class:", class(brand$PPG), "\n")
-    
-    # FIX: If PPG is numeric (row numbers from best_seq), convert to character using include_ppg
-    if (is.numeric(brand$PPG)) {
-      cat("[FIX] PPG is numeric! Converting to character using include_ppg value\n")
-      if (length(include_ppg) > 0 && !is.null(include_ppg) && include_ppg[1] != "") {
-        brand[, PPG := as.character(include_ppg[1])]
-        cat("[FIX] Set all PPG values to:", include_ppg[1], "\n")
-      } else {
-        brand[, PPG := as.character(PPG)]
-        cat("[FIX] Converted numeric PPG to character\n")
-      }
-    }
-    cat("Number of rows BEFORE filter:", nrow(brand), "\n")
-  } else {
-    cat("Available columns:", paste(names(brand), collapse=", "), "\n")
-  }
-  cat("include_ppg value:", include_ppg, "\n")
-  cat("================================\n\n")
+  #brand$Tesco_Week_No=brand$`Track ID`
   
   #Keep only selected PPG
-  # include_ppg should be passed from plumber_api.R, not hardcoded
-  # For backward compatibility, check if include_ppg was passed
-  if (!exists("include_ppg") || is.null(include_ppg) || length(include_ppg) == 0 || include_ppg == "") {
-    include_ppg = unique(brand$PPG)  # Use all PPGs if not specified
-    cat("Using ALL PPGs from brand data:", paste(include_ppg, collapse=", "), "\n")
-  }
   
   brand = brand[ PPG %in% include_ppg ]
-  cat("Number of rows AFTER filter:", nrow(brand), "\n")
-  cat("PPGs in brand after filter:", paste(unique(brand$PPG), collapse=", "), "\n")
   budget_const = budget_const[PPG %in% include_ppg]
   events_base = events_base[PPG %in% include_ppg]
   ppg_slots = ppg_slots[PPG %in% include_ppg]
-  
-  # CRITICAL FIX: Ensure ALL PPG columns are character type for consistent merges
-  cat("[FIX] Ensuring all PPG columns are character type for merges...\n")
-  if ("PPG" %in% names(brand)) brand[, PPG := as.character(PPG)]
-  if ("PPG" %in% names(budget_const)) budget_const[, PPG := as.character(PPG)]
-  if ("PPG" %in% names(events_base)) events_base[, PPG := as.character(PPG)]
-  if ("PPG" %in% names(ppg_slots)) ppg_slots[, PPG := as.character(PPG)]
-  cat("[FIX] PPG types - brand:", class(brand$PPG), ", events:", class(events_base$PPG), 
-      ", ppg_slots:", class(ppg_slots$PPG), ", budget:", class(budget_const$PPG), "\n")
   
   
   #Remove excluded PPG from optimizer data
@@ -951,6 +964,7 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   #Create ROI Column
   events_base[,"ROI"] = events_base[,roi, with = FALSE]                                              #addon 3 ROI's
   
+  events_base$Flyer_Flag
   #Set keys for fast lookups - CRITICAL OPTIMIZATION
   setkey(budget_const, PPG)
   setkey(events_base, PPG, ROI)
@@ -1017,94 +1031,12 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   not_prom = brand[Seq == 0,]
   
-  # DEBUG: Comprehensive field and formula logging
-  cat("\n")
-  cat("##########################################################\n")
-  cat("##       COMPREHENSIVE DEBUG - ALL FIELDS & FORMULAS    ##\n")
-  cat("##########################################################\n\n")
-  
-  cat("========== 1. INPUT BRAND DATA ==========\n")
-  cat("Total brand rows:", nrow(brand), "\n")
-  cat("not_prom rows (Seq==0):", nrow(not_prom), "\n")
-  cat("prom rows (Seq==1):", nrow(brand[Seq == 1,]), "\n")
-  cat("\nAll columns in brand:\n")
-  cat(paste(names(brand), collapse=", "), "\n\n")
-  
-  if (nrow(not_prom) > 0) {
-    cat("========== 2. KEY INPUT FIELDS (from brand/not_prom) ==========\n")
-    cat("PPG values:", paste(unique(not_prom$PPG), collapse=", "), "\n")
-    
-    # Financial columns from cost bible
-    if ("OID_Unit" %in% names(not_prom)) {
-      cat("\nOID_Unit (Off-Invoice Discount per Unit):\n")
-      cat("  min:", min(not_prom$OID_Unit, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$OID_Unit, na.rm=TRUE), "\n")
-      cat("  mean:", mean(not_prom$OID_Unit, na.rm=TRUE), "\n")
-      cat("  sum:", sum(not_prom$OID_Unit, na.rm=TRUE), "\n")
-      cat("  first 5 values:", paste(head(not_prom$OID_Unit, 5), collapse=", "), "\n")
-    } else {
-      cat("\nOID_Unit: *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("UNCR_Unit" %in% names(not_prom)) {
-      cat("\nUNCR_Unit (Unconditional Rebate per Unit):\n")
-      cat("  min:", min(not_prom$UNCR_Unit, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$UNCR_Unit, na.rm=TRUE), "\n")
-      cat("  sum:", sum(not_prom$UNCR_Unit, na.rm=TRUE), "\n")
-    } else {
-      cat("\nUNCR_Unit: *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("RSP (unit)" %in% names(not_prom)) {
-      cat("\nRSP (unit) - Retail Selling Price:\n")
-      cat("  min:", min(not_prom$`RSP (unit)`, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$`RSP (unit)`, na.rm=TRUE), "\n")
-      cat("  mean:", mean(not_prom$`RSP (unit)`, na.rm=TRUE), "\n")
-    } else {
-      cat("\nRSP (unit): *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("Net Cost (Unit)" %in% names(not_prom)) {
-      cat("\nNet Cost (Unit):\n")
-      cat("  min:", min(not_prom$`Net Cost (Unit)`, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$`Net Cost (Unit)`, na.rm=TRUE), "\n")
-    } else {
-      cat("\nNet Cost (Unit): *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("COGS (unit)" %in% names(not_prom)) {
-      cat("\nCOGS (unit) - Cost of Goods Sold:\n")
-      cat("  min:", min(not_prom$`COGS (unit)`, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$`COGS (unit)`, na.rm=TRUE), "\n")
-    } else {
-      cat("\nCOGS (unit): *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("STP (Unit)" %in% names(not_prom)) {
-      cat("\nSTP (Unit) - Standard Transfer Price:\n")
-      cat("  min:", min(not_prom$`STP (Unit)`, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$`STP (Unit)`, na.rm=TRUE), "\n")
-    } else {
-      cat("\nSTP (Unit): *** COLUMN NOT FOUND! ***\n")
-    }
-    
-    if ("Base Sales" %in% names(not_prom)) {
-      cat("\nBase Sales (units):\n")
-      cat("  sum:", sum(not_prom$`Base Sales`, na.rm=TRUE), "\n")
-      cat("  min:", min(not_prom$`Base Sales`, na.rm=TRUE), "\n")
-      cat("  max:", max(not_prom$`Base Sales`, na.rm=TRUE), "\n")
-    } else {
-      cat("\nBase Sales: *** COLUMN NOT FOUND! ***\n")
-    }
-  }
-  cat("\n")
-  
   not_prom[,Event_Multiplier_Tesco := 0]
   not_prom[,Event_Lift := Event_Multiplier_Tesco * `Base Sales`]
   not_prom[,Total_Sales := `Base Sales` + Event_Lift]
   not_prom[,Promo_Price := `RSP (unit)`]
   not_prom[,Retro_Funding_Unit := 0.335]
-#  not_prom[,Retro_Funding_Total := Retro_Funding_Unit*Total_Sales]
+  #  not_prom[,Retro_Funding_Total := Retro_Funding_Unit*Total_Sales]
   not_prom[,BIP := Total_Sales*`Net Cost (Unit)`]
   not_prom[,COGS_Total := Total_Sales*`COGS (unit)`]
   not_prom[,Gross_Sales :=Promo_Price*Total_Sales]
@@ -1112,47 +1044,7 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   not_prom[,UNCR_Total := (`RSP (unit)` - Promo_Price)*`Base Sales`]                                                  #addon
   not_prom[,OID_Total := OID_Unit*`Base Sales`]                                                    #addon
-  not_prom[,Total_Trade_Investment := (UNCR_Total + OID_Total+Retro_Funding_Total)]                                  #addon
-  
-  # DEBUG: Comprehensive formula results
-  cat("========== 3. CALCULATED FIELDS (not_prom) ==========\n")
-  cat("\nFormula: Event_Lift = Event_Multiplier_Tesco * Base Sales\n")
-  cat("  Event_Multiplier_Tesco (set to 0 for non-promo):", unique(not_prom$Event_Multiplier_Tesco)[1], "\n")
-  cat("  Event_Lift sum:", sum(not_prom$Event_Lift, na.rm=TRUE), "\n")
-  
-  cat("\nFormula: Total_Sales = Base Sales + Event_Lift\n")
-  cat("  Total_Sales sum:", sum(not_prom$Total_Sales, na.rm=TRUE), "\n")
-  
-  cat("\nFormula: Promo_Price = RSP (unit) [for non-promo weeks]\n")
-  cat("  Promo_Price min:", min(not_prom$Promo_Price, na.rm=TRUE), "\n")
-  cat("  Promo_Price max:", max(not_prom$Promo_Price, na.rm=TRUE), "\n")
-  
-  cat("\nFormula: Gross_Sales = Promo_Price * Total_Sales\n")
-  cat("  Gross_Sales sum:", sum(not_prom$Gross_Sales, na.rm=TRUE), "\n")
-  
-  cat("\nFormula: UNCR_Total = (RSP (unit) - Promo_Price) * Base Sales\n")
-  cat("  NOTE: For non-promo, RSP == Promo_Price, so UNCR_Total should be 0\n")
-  cat("  RSP (unit) sample:", head(not_prom$`RSP (unit)`, 3), "\n")
-  cat("  Promo_Price sample:", head(not_prom$Promo_Price, 3), "\n")
-  cat("  (RSP - Promo_Price) sample:", head(not_prom$`RSP (unit)` - not_prom$Promo_Price, 3), "\n")
-  cat("  UNCR_Total sum:", sum(not_prom$UNCR_Total, na.rm=TRUE), "\n")
-  
-  cat("\nFormula: OID_Total = OID_Unit * Base Sales\n")
-  cat("  OID_Unit sample:", head(not_prom$OID_Unit, 3), "\n")
-  cat("  Base Sales sample:", head(not_prom$`Base Sales`, 3), "\n")
-  cat("  OID_Total sum:", sum(not_prom$OID_Total, na.rm=TRUE), "\n")
-  
-  cat("\n*** CRITICAL: Total_Trade_Investment = UNCR_Total + OID_Total ***\n")
-  cat("  UNCR_Total sum:", sum(not_prom$UNCR_Total, na.rm=TRUE), "\n")
-  cat("  OID_Total sum:", sum(not_prom$OID_Total, na.rm=TRUE), "\n")
-  cat("  Total_Trade_Investment sum:", sum(not_prom$Total_Trade_Investment, na.rm=TRUE), "\n")
-  cat("  >>> THIS IS WHAT FEEDS INTO Investment_ppg <<<\n")
-  
-  cat("\nFormula: Net_Revenue = Gross_Sales - Total_Trade_Investment\n")
-  cat("Formula: NIS = Gross_Sales - UNCR_Total - OID_Total\n")
-  cat("Formula: GM_Abs = Net_Revenue - COGS_Total\n")
-  cat("===========================================\n\n")
-  
+  not_prom[,Total_Trade_Investment := (UNCR_Total + OID_Total+Retro_Funding_Total)]                                    #addon
   not_prom[,Net_Revenue := Gross_Sales - Total_Trade_Investment]                                   #addon
   not_prom[,NIS := Gross_Sales - UNCR_Total - OID_Total]                                           #addon
   not_prom[,GM_Abs := Net_Revenue - COGS_Total ]
@@ -1181,34 +1073,10 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   not_prom_R_Trade_Inv_Inc = sum(not_prom$R_Trade_Inv_Inc)                                        #addon_2
   not_prom_Value_Sales = sum(not_prom$Value_Sales)                                #addon_3
   
-  # DEBUG: Summary of non-promoted weeks calculations
-  cat("========== 4. NON-PROMOTED WEEKS SUMMARY ==========\n")
-  cat("not_prom_GM_Abs:", not_prom_GM_Abs, "\n")
-  cat("not_prom_Total_Sales:", not_prom_Total_Sales, "\n")
-  cat("not_prom_BIP:", not_prom_BIP, "\n")
-  cat("not_prom_Gross_Sales:", not_prom_Gross_Sales, "\n")
-  cat("not_prom_Total_Trade_Investment:", not_prom_Total_Trade_Investment, " *** KEY VALUE ***\n")
-  cat("not_prom_Net_Revenue:", not_prom_Net_Revenue, "\n")
-  cat("not_prom_NIS:", not_prom_NIS, "\n")
-  cat("not_prom_Value_Sales:", not_prom_Value_Sales, "\n")
-  cat("===========================================\n\n")
-  
   ####play with promoted weeks####
-  
+   
   prom = brand[Seq == 1]   #filter promoted weeks
   
-  cat("========== 5. PROMOTED WEEKS DATA ==========\n")
-  cat("prom rows (Seq==1):", nrow(prom), "\n")
-  if (nrow(prom) > 0) {
-    cat("prom PPG values:", paste(unique(prom$PPG), collapse=", "), "\n")
-    cat("prom Base Sales sum:", sum(prom$`Base Sales`, na.rm=TRUE), "\n")
-  } else {
-    cat("*** NO PROMOTED WEEKS FOUND! Seq column may not have value 1 ***\n")
-    cat("Seq values in brand:", paste(unique(brand$Seq), collapse=", "), "\n")
-  }
-  cat("===========================================\n\n")
-  
-  #create a rank within PPG
   
   prom[,Rank := rank(-`Base Sales`, ties.method = c("first")), by = .(PPG)]  #highest sales => rank 1
   
@@ -1239,19 +1107,34 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   #3.1 events_base - Best ROI - Display Flag is 0
   events_base <- events_base %>%
     mutate(across(where(is.numeric), ~ifelse(is.na(.) | is.infinite(.), 0, .)))
-  best_roi_discount = events_base[Display_Flag == 0,.(ROI = max(ROI)),by = .(PPG)]
+  best_roi_discount = events_base[Display_Flag == 0 & Flyer_Flag!=1,.(ROI = max(ROI)),by = .(PPG)]
   best_roi_discount[,key := paste(PPG,ROI)]
   best_roi_discount = events_base[events_base$key %in% best_roi_discount$key,]   #to extract all columns
   best_roi_discount[,"Best_ROI_Flag"] = "Discount_Only"
   
   #3.2 events_base - finding worst event - Min Display Multiplier for each PPG
-  best_roi_display = events_base[Display_Flag == 1 ,.(ROI = max(ROI)),by = .(PPG)]
+  best_roi_display = events_base[Display_Flag == 1 & Flyer_Flag!=1 ,.(ROI = max(ROI)),by = .(PPG)]
   best_roi_display[,key := paste(PPG,ROI)]
   best_roi_display = events_base[events_base$key %in% best_roi_display$key,]   #to extract all columns
   best_roi_display[,"Best_ROI_Flag"] = "Display_with_Discount"
   
+  
+  best_roi_flyer= events_base[Flyer_Flag == 1 ,.(ROI = max(ROI)),by = .(PPG)]
+  best_roi_flyer[,key := paste(PPG,ROI)]
+  best_roi_flyer = events_base[events_base$key %in% best_roi_flyer$key,]   #to extract all columns
+  best_roi_flyer[,"Best_ROI_Flag"] = "Flyer_with_Discount"
+  
+  best_roi_display_flyer <- events_base[
+    Display_Flag == 1 & Flyer_Flag == 1,
+    .(ROI = max(ROI)),
+    by = .(PPG)
+  ]
+  best_roi_display_flyer[,key := paste(PPG,ROI)]
+  best_roi_display_flyer = events_base[events_base$key %in% best_roi_display_flyer$key,]   #to extract all columns
+  best_roi_display_flyer[,"Best_ROI_Flag"] = "Display and flyer with discount"
   #3.3 merge both discount and display events
-  best_roi = rbind(best_roi_discount, best_roi_display)
+  
+  best_roi = rbind(best_roi_discount, best_roi_display,best_roi_flyer, best_roi_display_flyer)
   
   # REMOVED DEBUG PRINTS for performance
   # print(" best_roi ")
@@ -1264,16 +1147,19 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   #3.4 prom - CREATE Best_ROI_Flag in prom
   prom = merge(prom,ppg_slots[,c("PPG","Min_Display_Slots","Max_Display_Slots")], all.x = T, by = "PPG")
-  
   # REMOVED DEBUG PRINTS for performance
   # print("merge")
   # print(prom)
-  prom$Min_Display_Slots
   prom[,Best_ROI_Flag := ifelse(Min_Display_Slots - Rank >= 0, "Display_with_Discount", "Discount_Only")]
   #3.5 creating promotion base
-  prom_base = merge(prom,best_roi[,.(PPG,Discount,Display,Display_Cost,Display_Flag,Event_Multiplier_Tesco,ROI,Best_ROI_Flag)],
+ 
+  prom_base = merge(prom,best_roi[,.(PPG,Discount,Display,Display_Cost,Display_Flag
+                                     ,Flyer,Flyer_Cost,Flyer_Flag,Event_Multiplier_Tesco,Event_Multiplier_Discount,
+                                     Event_Multiplier_Flyer,Event_Multiplier_Display,Event_Multiplier_Flyer_Display,ROI,Best_ROI_Flag)],
                     all.x = T, by = c("PPG","Best_ROI_Flag"),allow.cartesian = T)
   
+  
+   
   #####DEBUG: Before Starting Optimization Loop
   cat("\n========== STARTING OPTIMIZATION LOOP ==========\n")
   cat("Promotion base rows:", nrow(prom_base), "\n")
@@ -1286,12 +1172,38 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
     # Remove duplicates based on the 'Name' column
     prom_base <- prom_base %>% distinct(Tesco_Week_No, .keep_all = TRUE)
   #prom_base$Best_ROI_Flag
-  #3.6 CREATE Additional Display Flag
+  #3.6 CREATE Additional Display and Flyer Flags
   prom_base[,Adi_Display_Flag := Max_Display_Slots - Rank]
-  prom_base[,Flag_Check := ifelse(Display_Flag == 1,1,ifelse(Display_Flag == 0 & Adi_Display_Flag >= 0,2,0))]
-  #Flag_check = 1 => only display can be done
-  #Flag_check = 2 => both display and discount can be done
-  #Flag_check = 0 => only discount can be done
+  
+  # Initialize Flyer_Flag if missing
+  if(!"Flyer_Flag" %in% names(prom_base)) {
+    prom_base[,Flyer_Flag := 0]
+  }
+  if(!"Flyer" %in% names(prom_base)) {
+    prom_base[,Flyer := NA]
+  }
+  if(!"Flyer_Cost" %in% names(prom_base)) {
+    prom_base[,Flyer_Cost := 0]
+  }
+  
+  # Add flyer flag if flyer slots exist, otherwise use display slots
+  if("Max_Flyer_Slots" %in% names(prom_base)) {
+    prom_base[,Adi_Flyer_Flag := Max_Flyer_Slots - Rank]
+  } else {
+    prom_base[,Adi_Flyer_Flag := Adi_Display_Flag]  # Use display slots for flyer if no separate constraint
+  }
+  
+  # Update Flag_Check to handle flyer events
+  # Priority: Display+Flyer > Display only > Flyer only > Discount+Display/Flyer > Discount only
+  prom_base[,Flag_Check := ifelse(Display_Flag == 1 & Flyer_Flag == 1, 3,  # Both display and flyer (must keep both)
+                                  ifelse(Display_Flag == 1 & Flyer_Flag == 0, 1,  # Only display (must keep display)
+                                         ifelse(Display_Flag == 0 & Flyer_Flag == 1, 4,  # Only flyer (must keep flyer)
+                                                ifelse(Display_Flag == 0 & Flyer_Flag == 0 & Adi_Display_Flag >= 0, 2, 0))))]
+  #Flag_check = 0 => only discount can be done (no display/flyer slots available)
+  #Flag_check = 1 => only display can be done (display already active)
+  #Flag_check = 2 => both display/flyer and discount can be done (slots available, no display/flyer active)
+  #Flag_check = 3 => display + flyer can be done (both active)
+  #Flag_check = 4 => only flyer can be done (flyer already active)
   prom_base[,Flag_Check_Counter := 0]
   #This counter is updated to 1, when Flag_Check = 2 is found in algorithm.
   # 
@@ -1321,8 +1233,107 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   
   #<========================================------SATISFY MINIMUM BUDGET CRITERIA----------==================================#>
   
+  # Pre-calculate base constraint check BEFORE minimum budget loop (needed for constraint validation)
+  base_sums_before_budget = list(
+    Total_Sales = sum(prom_base$Total_Sales, na.rm = TRUE),
+    GM_Abs = sum(prom_base$GM_Abs, na.rm = TRUE),
+    BIP = sum(prom_base$BIP, na.rm = TRUE),
+    Gross_Sales = sum(prom_base$Gross_Sales, na.rm = TRUE),
+    Inc_GM_Abs = sum(prom_base$Inc_GM_Abs, na.rm = TRUE),
+    Total_Trade_Investment = sum(prom_base$Total_Trade_Investment, na.rm = TRUE),
+    Net_Revenue = sum(prom_base$Net_Revenue, na.rm = TRUE),
+    NIS = sum(prom_base$NIS, na.rm = TRUE),
+    R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc, na.rm = TRUE),
+    R_GM_Inc = sum(prom_base$R_GM_Inc, na.rm = TRUE),
+    R_NIS_Inc = sum(prom_base$R_NIS_Inc, na.rm = TRUE),
+    R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc, na.rm = TRUE),
+    Value_Sales = sum(prom_base$Value_Sales, na.rm = TRUE)
+  )
+  
+  check_base_con_before_budget = constraint_fun(
+    base_sums_before_budget$Total_Sales, base_sums_before_budget$GM_Abs, base_sums_before_budget$BIP,
+    base_sums_before_budget$Gross_Sales, base_sums_before_budget$Inc_GM_Abs,
+    base_sums_before_budget$Total_Trade_Investment, base_sums_before_budget$Net_Revenue,
+    all_other_sales, base_sums_before_budget$NIS,
+    not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+    not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+    exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+    exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+    con1, con2, con3, con4, con5, con6,
+    con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+    con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+    goal, roi,
+    base_sums_before_budget$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+    base_sums_before_budget$R_GM_Inc, exc_R_GM_Inc, base_sums_before_budget$R_NIS_Inc, exc_R_NIS_Inc,
+    base_sums_before_budget$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+    exc_Value_Sales, not_prom_Value_Sales, base_sums_before_budget$Value_Sales, all_other_sales_value,
+    scope = "PROMO_ONLY"
+  )
+  
   # Pre-create track_id lookup for faster access
   track_id_lookup = split(prom_base$`Track ID`, prom_base$PPG)
+  
+  # Helper function to check if budget update respects constraints
+  check_budget_update_constraints = function(prom_update_check, check_base_con_ref) {
+    update_sums_check = list(
+      Total_Sales = sum(prom_update_check$Total_Sales, na.rm = TRUE),
+      GM_Abs = sum(prom_update_check$GM_Abs, na.rm = TRUE),
+      BIP = sum(prom_update_check$BIP, na.rm = TRUE),
+      Gross_Sales = sum(prom_update_check$Gross_Sales, na.rm = TRUE),
+      Inc_GM_Abs = sum(prom_update_check$Inc_GM_Abs, na.rm = TRUE),
+      Total_Trade_Investment = sum(prom_update_check$Total_Trade_Investment, na.rm = TRUE),
+      Net_Revenue = sum(prom_update_check$Net_Revenue, na.rm = TRUE),
+      NIS = sum(prom_update_check$NIS, na.rm = TRUE),
+      R_Trade_Inv_Inc = sum(prom_update_check$R_Trade_Inv_Inc, na.rm = TRUE),
+      R_GM_Inc = sum(prom_update_check$R_GM_Inc, na.rm = TRUE),
+      R_NIS_Inc = sum(prom_update_check$R_NIS_Inc, na.rm = TRUE),
+      R_Net_Rev_Inc = sum(prom_update_check$R_Net_Rev_Inc, na.rm = TRUE),
+      Value_Sales = sum(prom_update_check$Value_Sales, na.rm = TRUE)
+    )
+    
+    check_update_con_check = constraint_fun(
+      update_sums_check$Total_Sales, update_sums_check$GM_Abs, update_sums_check$BIP,
+      update_sums_check$Gross_Sales, update_sums_check$Inc_GM_Abs,
+      update_sums_check$Total_Trade_Investment, update_sums_check$Net_Revenue,
+      all_other_sales, update_sums_check$NIS,
+      not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+      not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+      exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+      exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+      con1, con2, con3, con4, con5, con6,
+      con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+      con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+      goal, roi,
+      update_sums_check$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+      update_sums_check$R_GM_Inc, exc_R_GM_Inc, update_sums_check$R_NIS_Inc, exc_R_NIS_Inc,
+      update_sums_check$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+      exc_Value_Sales, not_prom_Value_Sales, update_sums_check$Value_Sales, all_other_sales_value,
+      scope = "PROMO_ONLY"
+    )
+    
+    # Priority 1 constraint check: Only accept if constraint is satisfied OR not violated worse
+    base_con1_satisfied = tryCatch(check_base_con_ref[[1]][[1]] == 1, error = function(e) FALSE)
+    update_con1_satisfied = tryCatch(check_update_con_check[[1]][[1]] == 1, error = function(e) FALSE)
+    
+    if(update_con1_satisfied) {
+      return(list(acceptable = TRUE, check_update_con = check_update_con_check, update_sums = update_sums_check))
+    } else if(base_con1_satisfied) {
+      # Base satisfies Priority 1, update must also satisfy it
+      return(list(acceptable = FALSE, check_update_con = check_update_con_check, update_sums = update_sums_check))
+    } else {
+      # Both violate Priority 1 - only accept if update is better (closer to satisfying)
+      base_con1_value = tryCatch(check_base_con_ref[[2]][[1]], error = function(e) NA_real_)
+      update_con1_value = tryCatch(check_update_con_check[[2]][[1]], error = function(e) NA_real_)
+      
+      if(!is.na(base_con1_value) && !is.na(update_con1_value)) {
+        # Accept if update value is >= base value (moving toward constraint satisfaction)
+        acceptable = update_con1_value >= base_con1_value
+        return(list(acceptable = acceptable, check_update_con = check_update_con_check, update_sums = update_sums_check))
+      } else {
+        return(list(acceptable = FALSE, check_update_con = check_update_con_check, update_sums = update_sums_check))
+      }
+    }
+  }
   
   for(ppg in unique(budget_const$PPG)){ # FOR LOOP 1
     
@@ -1357,366 +1368,18 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
       stop_opt = 1
       next
     } else if(budget_status == "below"){       #ELSEIF
-      
-      # Get track IDs once (use cached lookup)
-      track_id = track_id_lookup[[ppg]]
-      if(is.null(track_id) || length(track_id) == 0) next
-      
-      for(i in 1:nrow(events_ppg)){ #FOR LOOP 2
-        if(bud_satisf == 1) break  # Early exit when budget satisfied
-        
-        event = events_ppg[i,]
-        
-        #Loop over each track id
-        for(id in track_id){    #---------------------------------------------------------------------FOR LOOP 3
-          if(bud_satisf == 1) break  # Early exit
-          
-          # Use copy only when needed (not full copy every time)
-          prom_update = copy(prom_base)
-          
-          row_to_change = which(prom_update$`Track ID` == id)
-          if(length(row_to_change) == 0) next
-          
-          #Get Info if it is discount only slot, display only slot or both discount/display slot
-          flag_check = as.numeric(prom_update[row_to_change,"Flag_Check"])
-          ROI = as.numeric(prom_update[row_to_change,"ROI"])
-          counter_check = as.numeric(prom_update[row_to_change,"Flag_Check_Counter"])
-          extra_slot_flag = as.numeric(prom_update[row_to_change,"Extra_Slot_Flag"])
-          ppg = as.character(event$PPG)
-          
-          #Update slot in prom_update based on criteria's
-          
-          #1. All possibilities where display_flag = 0
-          if(event$Display_Flag == 0 & flag_check == 0 & extra_slot_flag == 0 & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              # Update cached sums when prom_base changes
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales),
-                GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP),
-                Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs),
-                Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue),
-                NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc),
-                R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc),
-                R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              # Update cached sums
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales),
-                GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP),
-                Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs),
-                Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue),
-                NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc),
-                R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc),
-                R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1
-              break
-            }
-          }
-          
-          if(event$Display_Flag == 0 & flag_check == 0 & extra_slot_flag == 1 & ROI > event$ROI & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1; break 
-            }
-          }
-          
-          if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 0 & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1; break 
-            }
-          }
-          
-          if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 1 & ROI > event$ROI & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1; break 
-            }
-          }
-          
-          #2. All possibilities where display_flag = 1
-          if(event$Display_Flag == 1 & flag_check == 1 & ROI > event$ROI & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1; break 
-            }
-          }
-          
-          if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 0 & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { stop_opt = 1; break }
-          }
-          
-          if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 1 & ROI > event$ROI & bud_satisf == 0){
-            prom_update = update_base(prom_update, event, row_to_change)
-            con = budget_check(prom_update, not_prom, ppg, budget_const)
-            if(con["Status"] == "between"){
-              prom_base <- prom_update
-              bud_satisf = 1
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-              break
-            } else if(con["Status"] == "below"){
-              prom_base <- prom_update
-              base_prom_sums = list(
-                Total_Sales = sum(prom_base$Total_Sales), GM_Abs = sum(prom_base$GM_Abs),
-                BIP = sum(prom_base$BIP), Gross_Sales = sum(prom_base$Gross_Sales),
-                Inc_GM_Abs = sum(prom_base$Inc_GM_Abs), Total_Trade_Investment = sum(prom_base$Total_Trade_Investment),
-                Net_Revenue = sum(prom_base$Net_Revenue), NIS = sum(prom_base$NIS),
-                R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc), R_GM_Inc = sum(prom_base$R_GM_Inc),
-                R_NIS_Inc = sum(prom_base$R_NIS_Inc), R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc),
-                Value_Sales = sum(prom_base$Value_Sales)
-              )
-            } else { 
-              #####DEBUG: Budget Exceeded Maximum During Event Placement
-              cat("\nERROR: Budget exceeded maximum for PPG:", ppg, "during event placement\n")
-              cat("Event:", event$PPG, "| Track ID:", id, "| Display Flag:", event$Display_Flag, "\n")
-              budget_result = budget_check(prom_update, not_prom, ppg, budget_const)
-              cat("Budget Status:", budget_result[[1]], "\n")
-              if(length(budget_result) > 1){
-                cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-              }
-              cat("Stopping optimization - budget exceeded maximum\n")
-              cat("---\n")
-              
-              stop_opt = 1; break 
-            }
-          }
-          
-        } # FOR LOOP 3
-        if(bud_satisf == 1) break  # Exit event loop when budget satisfied
-      } # FOR LOOP 2
-      
-      if(bud_satisf == 0){
-        #####DEBUG: Budget Not Satisfied
-        cat("\nERROR: Could not achieve minimum budget for PPG:", ppg, "\n")
-        cat("Tried all", nrow(events_ppg), "events but budget still below minimum\n")
-        budget_result = budget_check(prom_base, not_prom, ppg, budget_const)
-        cat("Final Budget Status:", budget_result[[1]], "\n")
-        if(length(budget_result) > 1){
-          cat("Budget Details:", paste(names(budget_result), budget_result, sep="=", collapse=", "), "\n")
-        }
-        cat("Stopping optimization - cannot proceed without minimum budget\n")
-        cat("---\n")
-        
-        stop_opt = 1
-        # REMOVED DEBUG PRINT for performance
-        # print(paste0(ppg," -> Used all ROI events, but could not achieve minimum Budget."))
-      }
+      # Min-budget repair is disabled; we let the main optimization loop
+      # and per-candidate budget_check (in evaluate_candidate_parallel)
+      # handle budget as a guardrail. Just log and continue.
+      cat("Budget below minimum for PPG", ppg, "- no dedicated repair loop (handled in main optimization).\n")
+      next
       
     } #ELSEIF
     
   } #FOR LOOP 1
   
   # Get PPG's budget information
+  
   budget_info_prom = prom_base[,.(Total_Trade_Investment_prom = sum(Total_Trade_Investment)), by = .(`SECTOR 2`,`TRADING COMPANY`,`PRODUCT RANGE`,
                                                                                                      FORMAT,PPG,PPG_Description)]
   
@@ -1726,596 +1389,1139 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   budget_info = merge(budget_info_prom, budget_info_not_prom,  by = c("SECTOR 2","TRADING COMPANY","PRODUCT RANGE",
                                                                       "FORMAT","PPG","PPG_Description"), all.x = T)
   
-  # DEBUG: Show budget_const before merge
-  cat("[DEBUG] budget_const columns:", paste(names(budget_const), collapse=", "), "\n")
-  cat("[DEBUG] budget_const data:\n")
-  print(budget_const)
-  cat("[DEBUG] budget_info keys before merge:\n")
-  print(unique(budget_info[, c("PRODUCT RANGE", "FORMAT", "PPG", "PPG_Description"), with=FALSE]))
-  
-  # CRITICAL FIX: Use only PPG as the merge key for budget constraints
-  # This ensures user-provided Min/Max Investment values are applied regardless of 
-  # PRODUCT RANGE, FORMAT, or PPG_Description mismatches between tables
-  # Reference: R Shiny server.R line 3105 builds budget constraints per PPG
-  budget_const_ppg <- budget_const[, c("PPG", "Min_Investment", "Max_Investment"), with=FALSE]
-  cat("[DEBUG] Merging budget_const by PPG only:\n")
-  print(budget_const_ppg)
-  
-  budget_info = merge(budget_info, budget_const_ppg, by = "PPG", all.x = TRUE)
-  
-  # DEBUG: Show budget_info after merge to verify Min/Max Investment
-  cat("[DEBUG] budget_info after merge:\n")
-  print(budget_info[, c("PPG", "Min_Investment", "Max_Investment", "Total_Trade_Investment_prom", "Total_Trade_Investment_not_prom"), with=FALSE])
-  
+  budget_info = merge(budget_info,budget_const, by = c("PRODUCT RANGE","FORMAT","PPG","PPG_Description"), all.x = T)
   budget_info[,"Total_Trade_Investment"] = budget_info$Total_Trade_Investment_prom + budget_info$Total_Trade_Investment_not_prom
   
-  
-  # Handle NA values in Min/Max Investment by using large defaults
-  # This ensures optimization can proceed even if merge fails
-  budget_info[is.na(Min_Investment), Min_Investment := 0]  # No minimum constraint
-  budget_info[is.na(Max_Investment), Max_Investment := 1e20]  # No maximum constraint
-  
-  cat("[DEBUG] After NA handling - Min_Investment:", unique(budget_info$Min_Investment), "\n")
-  cat("[DEBUG] After NA handling - Max_Investment:", unique(budget_info$Max_Investment), "\n")
   
   budget_info[,Status := ifelse(Total_Trade_Investment<Min_Investment,"Budget less than Minimum", ifelse(Total_Trade_Investment > Max_Investment,
                                                                                                          "Budget more than Maximum", "Budget Range Satisfied"))]
   
-  cat("[DEBUG] Budget Status:", unique(budget_info$Status), "\n")
-  
   
   #<================================================-MINIMUM BUDGET SATISFIED-====================================================>
   
+  # Update base constraint check after budget loop (prom_base may have changed)
+  # This ensures the main optimization loop uses the correct base state
+  if(exists("check_base_con_before_budget")) {
+    # Recalculate from current prom_base to ensure consistency
+    base_sums_after_budget = list(
+      Total_Sales = sum(prom_base$Total_Sales, na.rm = TRUE),
+      GM_Abs = sum(prom_base$GM_Abs, na.rm = TRUE),
+      BIP = sum(prom_base$BIP, na.rm = TRUE),
+      Gross_Sales = sum(prom_base$Gross_Sales, na.rm = TRUE),
+      Inc_GM_Abs = sum(prom_base$Inc_GM_Abs, na.rm = TRUE),
+      Total_Trade_Investment = sum(prom_base$Total_Trade_Investment, na.rm = TRUE),
+      Net_Revenue = sum(prom_base$Net_Revenue, na.rm = TRUE),
+      NIS = sum(prom_base$NIS, na.rm = TRUE),
+      R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc, na.rm = TRUE),
+      R_GM_Inc = sum(prom_base$R_GM_Inc, na.rm = TRUE),
+      R_NIS_Inc = sum(prom_base$R_NIS_Inc, na.rm = TRUE),
+      R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc, na.rm = TRUE),
+      Value_Sales = sum(prom_base$Value_Sales, na.rm = TRUE)
+    )
+    
+    check_base_con_before_budget = constraint_fun(
+      base_sums_after_budget$Total_Sales, base_sums_after_budget$GM_Abs, base_sums_after_budget$BIP,
+      base_sums_after_budget$Gross_Sales, base_sums_after_budget$Inc_GM_Abs,
+      base_sums_after_budget$Total_Trade_Investment, base_sums_after_budget$Net_Revenue,
+      all_other_sales, base_sums_after_budget$NIS,
+      not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+      not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+      exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+      exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+      con1, con2, con3, con4, con5, con6,
+      con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+      con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+      goal, roi,
+      base_sums_after_budget$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+      base_sums_after_budget$R_GM_Inc, exc_R_GM_Inc, base_sums_after_budget$R_NIS_Inc, exc_R_NIS_Inc,
+      base_sums_after_budget$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+      exc_Value_Sales, not_prom_Value_Sales, base_sums_after_budget$Value_Sales, all_other_sales_value,
+      scope = "PROMO_ONLY"
+    )
+  }
   
+  # Sort events by ROI (highest first) to try best events first
+  # But also ensure we iterate through ALL events, not just the first few
   events_base = events_base[order(events_base$ROI, decreasing = T),]
   prom_base = prom_base[order(prom_base$PPG, prom_base$Rank),]
   
-  #events_base = events_base[PPG == "AW9"]
   
+  #events_base = events_base[PPG == "D77"]
+  
+  #####DEBUG: Event Selection Summary
+  cat("\n========== EVENT SELECTION SUMMARY ==========\n")
+  cat("Total events to iterate:", nrow(events_base), "\n")
+  cat("Events by Display Flag:\n")
+  if(nrow(events_base) > 0) {
+    display_flag_summary = table(events_base$Display_Flag, useNA = "ifany")
+    print(display_flag_summary)
+  }
+  cat("Top 10 events by ROI:\n")
+  if(nrow(events_base) > 0) {
+    print(head(events_base[, c("PPG", "ROI", "Display_Flag", "Discount", "Display","Flyer_Flag")], 10))
+  }
+  cat("==========================================\n\n")
   
   #If Stop_opt = 1, optimization will not run
   
+  
   if(stop_opt != 1){
     
-    # Pre-create track_id lookup for faster access (update if prom_base changed)
-    if(!exists("track_id_lookup") || length(track_id_lookup) != length(unique(prom_base$PPG))){
-      track_id_lookup = split(prom_base$`Track ID`, prom_base$PPG)
+    # ===== PRE-COMPUTATION: Do once before loops for performance =====
+    
+    # 1. Create track_id lookup table (hash map) - O(1) lookup instead of O(n)
+    track_id_lookup = split(prom_base$`Track ID`, prom_base$PPG)
+    
+    # 2. Create row index lookup for Track IDs - O(1) instead of which() every time
+    track_id_to_row = setNames(seq_len(nrow(prom_base)), as.character(prom_base$`Track ID`))
+    
+    # 3. Pre-calculate base sums once (only recalculate when prom_base changes)
+    base_sums_cache = list(
+      Total_Sales = sum(prom_base$Total_Sales, na.rm = TRUE),
+      GM_Abs = sum(prom_base$GM_Abs, na.rm = TRUE),
+      BIP = sum(prom_base$BIP, na.rm = TRUE),
+      Gross_Sales = sum(prom_base$Gross_Sales, na.rm = TRUE),
+      Inc_GM_Abs = sum(prom_base$Inc_GM_Abs, na.rm = TRUE),
+      Total_Trade_Investment = sum(prom_base$Total_Trade_Investment, na.rm = TRUE),
+      Net_Revenue = sum(prom_base$Net_Revenue, na.rm = TRUE),
+      NIS = sum(prom_base$NIS, na.rm = TRUE),
+      R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc, na.rm = TRUE),
+      R_GM_Inc = sum(prom_base$R_GM_Inc, na.rm = TRUE),
+      R_NIS_Inc = sum(prom_base$R_NIS_Inc, na.rm = TRUE),
+      R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc, na.rm = TRUE),
+      Value_Sales = sum(prom_base$Value_Sales, na.rm = TRUE)
+    )
+    
+    # 4. Pre-calculate base constraint check once (PROMO_ONLY scope)
+    # CRITICAL: Initialize BEFORE evaluate_candidate_parallel function is defined
+    # Use check_base_con_before_budget if it exists (from budget loop), otherwise calculate fresh
+    if(exists("check_base_con_before_budget")) {
+      check_base_con_cached = check_base_con_before_budget
+    } else {
+      check_base_con_cached = constraint_fun(
+        base_sums_cache$Total_Sales, base_sums_cache$GM_Abs, base_sums_cache$BIP,
+        base_sums_cache$Gross_Sales, base_sums_cache$Inc_GM_Abs,
+        base_sums_cache$Total_Trade_Investment, base_sums_cache$Net_Revenue,
+        all_other_sales, base_sums_cache$NIS,
+        not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+        not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+        exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+        exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+        con1, con2, con3, con4, con5, con6,
+        con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+        con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+        goal, roi,
+        base_sums_cache$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+        base_sums_cache$R_GM_Inc, exc_R_GM_Inc, base_sums_cache$R_NIS_Inc, exc_R_NIS_Inc,
+        base_sums_cache$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+        exc_Value_Sales, not_prom_Value_Sales, base_sums_cache$Value_Sales, all_other_sales_value,
+        scope = "PROMO_ONLY"
+      )
     }
     
-    for( i in 1:nrow(events_base)){   #------------------------------------------------------------FOR LOOP 1
-      
-      if(stop_opt == 1) break  # Early exit if optimization stopped
-      
-      #Extract Best ROI event
-      event = events_base[i,]
-      
-      #Get all the track id of a PPG - use cached lookup
-      
-      track_id = track_id_lookup[[event$PPG]]
-      if(is.null(track_id) || length(track_id) == 0) next
-      
-      progress_total = (nrow(events_base) * length(track_id))
-      
-      #Loop over each track id
-      for(id in track_id){    #---------------------------------------------------------------------FOR LOOP 2
-        
-        prom_update = copy(prom_base)  # Use copy() explicitly
-        replacement_flag = 0
-        final_flag = 0
-        con_satis_flag = 0
-        j = j+1
-        
-        #####DEBUG: Progress Tracking (every 1000 iterations)
-        if(j %% 1000 == 0){
-          cat("\n--- Progress Update (Iteration", j, ") ---\n")
-          cat("Current PPG:", ppg, "\n")
-          cat("Event ROI:", event$ROI, "\n")
-          cat("Replacement Flag:", replacement_flag, "\n")
-          cat("Budget Flag:", budget_flag, "\n")
-          cat("Update Flag:", update_flag, "\n")
-          cat("Final Flag:", final_flag, "\n")
-          cat("Constraints Satisfied Flag:", con_satis_flag, "\n")
-          cat("---\n")
-        }
-        
-        #####DEBUG: Conditional browser for specific scenarios
-        if(DEBUG_MODE && (j == 1 || (j %% 5000 == 0))){
-          # Interactive debugging every 5000 iterations or first iteration
-        }
-        
-        if(progress) incProgress((1/progress_total),detail = paste("Iteration", j))
-        
-        row_to_change = which(prom_update$`Track ID` == id)
-        if(length(row_to_change) == 0) next
-        
-        #Get Info if it is discount only slot, display only slot or both discount/display slot
-        flag_check = as.numeric(prom_update[row_to_change,"Flag_Check"])
-        ROI = as.numeric(prom_update[row_to_change,"ROI"])
-        counter_check = as.numeric(prom_update[row_to_change,"Flag_Check_Counter"])
-        extra_slot_flag  = as.numeric(prom_update[row_to_change,"Extra_Slot_Flag"])
+    # Make opti_sign comparison case-insensitive (calculate once)
+    opti_sign_upper = toupper(trimws(as.character(opti_sign)))
+    
+    # ===== PARALLEL PROCESSING SETUP =====
+    cat("\n========== SETTING UP PARALLEL PROCESSING ==========\n")
+    n_cores = min(detectCores() - 1, 4)  # Leave 1 core free, max 8 cores
+    cat("Using", n_cores, "cores for parallel processing\n")
+    
+    cl = makeCluster(n_cores, outfile = "")
+    registerDoParallel(cl)
+    
+    # Export all necessary variables and functions to workers
+    clusterExport(cl, c(
+      "prom_base", "events_base", "not_prom", "budget_const",
+      "goal", "con1", "con2", "con3", "con4", "con5", "con6",
+      "con1_min", "con1_max", "con2_min", "con2_max", "con3_min", "con3_max",
+      "con4_min", "con4_max", "con5_min", "con5_max", "con6_min", "con6_max",
+      "opti_sign_upper", "roi",
+      "all_other_sales", "all_other_sales_value",
+      "not_prom_Total_Sales", "not_prom_GM_Abs", "not_prom_BIP", 
+      "not_prom_Gross_Sales", "not_prom_Net_Revenue", "not_prom_NIS", 
+      "not_prom_Total_Trade_Investment", "not_prom_R_Trade_Inv_Inc",
+      "exc_Total_Sales", "exc_GM_Abs", "exc_BIP", "exc_Gross_Sales", 
+      "exc_Inc_GM", "exc_Total_Trade_Investment", "exc_Net_Revenue", 
+      "exc_NIS", "exc_R_Trade_Inv_Inc", "exc_R_GM_Inc", "exc_R_NIS_Inc",
+      "exc_R_Net_Rev_Inc", "exc_Value_Sales", "not_prom_Value_Sales",
+      "base_sums_cache", "check_base_con_cached", "track_id_to_row"
+    ), envir = environment())
+    
+    clusterEvalQ(cl, {
+      library(data.table)
+      source("do_calculation.R")
+      source("prom_update_fun.R")
+      source("constraint_fun.R")
+      source("ppg_budget_check_fun.R")
+      # Verify functions are loaded
+      if(!exists("update_base")) stop("update_base not found")
+      if(!exists("budget_check")) stop("budget_check not found")
+      if(!exists("constraint_fun")) stop("constraint_fun not found")
+      if(!exists("do_calculation")) stop("do_calculation not found")
+    })
+    
+    # ===== HELPER FUNCTION FOR PARALLEL EVALUATION =====
+    evaluate_candidate_parallel = function(event_data, track_id_val, row_idx_val) {
+      debug_step = "start"
+      tryCatch({
+        debug_step = "convert_event"
+        # Convert event data back to data.table row
+        event = as.data.table(event_data)
+        event
+        debug_step = "get_row_info"
+        # Get current row info from prom_base snapshot
+        flag_check = as.numeric(prom_base[row_idx_val, "Flag_Check"])
+        ROI = as.numeric(prom_base[row_idx_val, "ROI"])
+        counter_check = as.numeric(prom_base[row_idx_val, "Flag_Check_Counter"])
+        extra_slot_flag = as.numeric(prom_base[row_idx_val, "Extra_Slot_Flag"])
         ppg = as.character(event$PPG)
         
-        #Update slot in prom_update based on criteria's - OPTIMIZED WITH EARLY EXITS
+        debug_step = "extract_flags"
+        # Check replacement eligibility
+        # Get event flags (handle missing/NA values)
         
-        #1. All possibilities where display_flag = 0
-        if(event$Display_Flag == 0 & flag_check == 0 & extra_slot_flag == 0){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 0 & flag_check == 0 & extra_slot_flag == 1 & ROI > event$ROI){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 0){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 1 & ROI > event$ROI){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 1 & flag_check == 1 & ROI > event$ROI){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 0){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
-        } else if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 1 & ROI > event$ROI){
-          prom_update = update_base(prom_update,event,row_to_change)
-          replacement_flag = 1
+        names(event)
+        event_display_flag = event$Display_Flag
+        event_flyer_flag = event$Flyer_Flag
+        event_roi = event$ROI
+        debug_step = "sanitize_numeric"
+        # Ensure all numeric values are not NA
+        flag_check = ifelse(is.na(flag_check), 0, flag_check)
+        ROI = ifelse(is.na(ROI), -Inf, ROI)
+        counter_check = ifelse(is.na(counter_check), 0, counter_check)
+        extra_slot_flag = ifelse(is.na(extra_slot_flag), 0, extra_slot_flag)
+        
+        
+        debug_step = "replacement_check"
+        replacement_flag = 0
+        
+        
+        # Precompute helpers
+        roi_ok        <- counter_check == 0 | ROI > event_roi
+        extra_ok      <- extra_slot_flag == 0 | (extra_slot_flag == 1 & ROI > event_roi)
+        
+        discount_only <- event_display_flag == 0 & event_flyer_flag == 0
+        display_only  <- event_display_flag == 1 & event_flyer_flag == 0
+        flyer_only    <- event_flyer_flag  == 1 & event_display_flag == 0
+        both          <- event_display_flag == 1 & event_flyer_flag == 1
+        
+        
+        replacement_flag <- FALSE
+        reason <- NULL
+        
+        
+        # -------- DISCOUNT ONLY --------
+        if(discount_only && flag_check %in% c(0,2) && extra_ok && roi_ok){
+          replacement_flag <- TRUE
+          reason <- "discount"
         }
         
-        # Only check budget if replacement happened
-        if(replacement_flag == 1) {
-          budget_check_result = budget_check(prom_update,not_prom,ppg,budget_const)
-          budget_flag = ifelse(budget_check_result[[1]] == "between",1,0)
-          
-          #####DEBUG: Budget Check Issues
-          if(budget_flag == 0 && (j %% 100 == 0 || j <= 10)){
-            cat("Budget check failed at iteration", j, "| PPG:", ppg, "| Status:", budget_check_result[[1]], "\n")
+        # -------- DISPLAY ONLY --------
+        if(!replacement_flag &&
+           display_only &&
+           (
+             (flag_check == 1 && ROI > event_roi) ||
+             (flag_check == 2 && roi_ok)
+           )
+        ){
+          replacement_flag <- TRUE
+          reason <- "display"
+        }
+        
+        # -------- FLYER ONLY --------
+        if(!replacement_flag &&
+           flyer_only &&
+           flag_check %in% c(4,2) &&
+           extra_ok &&
+           roi_ok
+        ){
+          replacement_flag <- TRUE
+          reason <- "flyer"
+        }
+        
+        # -------- DISPLAY + FLYER --------
+        if(!replacement_flag &&
+           both &&
+           flag_check %in% c(3,2) &&
+           extra_ok &&
+           roi_ok
+        ){
+          replacement_flag <- TRUE
+          reason <- "display+flyer"
+        }
+        
+        
+        # -------- DEBUG OUTPUT --------
+        if(replacement_flag){
+          cat("DEBUG: Set replacement_flag=1 (", reason, ")\n")
+        }
+        
+        
+        # Reject if not eligible
+        if (!replacement_flag) {
+          return(list(accepted = FALSE, reason = "not_eligible"))
+        }
+        
+        # Create update
+        prom_update <- copy(prom_base)
+        prom_update <- update_base(prom_update, event, row_idx_val)
+        debug_step = "budget_check"
+        
+        # Budget check
+        budget_check_result = budget_check(prom_update, not_prom, ppg, budget_const)
+        budget_flag = ifelse(budget_check_result[[1]] %in% c("below", "between"), 1, 0)
+        
+        cat("DEBUG: budget_flag =", budget_flag, "\n")
+        
+        if(budget_flag == 0) {
+          return(list(accepted = FALSE, reason = "budget_exceeded"))
+        }
+        
+        debug_step = "calculate_sums"
+        # Calculate sums
+        update_sums = list(
+          Total_Sales = sum(prom_update$Total_Sales, na.rm = TRUE),
+          GM_Abs = sum(prom_update$GM_Abs, na.rm = TRUE),
+          BIP = sum(prom_update$BIP, na.rm = TRUE),
+          Gross_Sales = sum(prom_update$Gross_Sales, na.rm = TRUE),
+          Inc_GM_Abs = sum(prom_update$Inc_GM_Abs, na.rm = TRUE),
+          Total_Trade_Investment = sum(prom_update$Total_Trade_Investment, na.rm = TRUE),
+          Net_Revenue = sum(prom_update$Net_Revenue, na.rm = TRUE),
+          NIS = sum(prom_update$NIS, na.rm = TRUE),
+          R_Trade_Inv_Inc = sum(prom_update$R_Trade_Inv_Inc, na.rm = TRUE),
+          R_GM_Inc = sum(prom_update$R_GM_Inc, na.rm = TRUE),
+          R_NIS_Inc = sum(prom_update$R_NIS_Inc, na.rm = TRUE),
+          R_Net_Rev_Inc = sum(prom_update$R_Net_Rev_Inc, na.rm = TRUE),
+          Value_Sales = sum(prom_update$Value_Sales, na.rm = TRUE)
+        )
+        
+        debug_step = "constraint_check"
+        # Constraint check (PROMO_ONLY scope)
+        check_update_con = constraint_fun(
+          update_sums$Total_Sales, update_sums$GM_Abs, update_sums$BIP,
+          update_sums$Gross_Sales, update_sums$Inc_GM_Abs,
+          update_sums$Total_Trade_Investment, update_sums$Net_Revenue,
+          all_other_sales, update_sums$NIS,
+          not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+          not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+          exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+          exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+          con1, con2, con3, con4, con5, con6,
+          con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+          con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+          goal, roi,
+          update_sums$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+          update_sums$R_GM_Inc, exc_R_GM_Inc, update_sums$R_NIS_Inc, exc_R_NIS_Inc,
+          update_sums$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+          exc_Value_Sales, not_prom_Value_Sales, update_sums$Value_Sales, all_other_sales_value,
+          scope = "PROMO_ONLY"
+        )
+        
+        check_base_con = check_base_con_cached
+        
+        # Goal flag check
+        base_goal_val = tryCatch(check_base_con[[5]][[1]], error = function(e) check_base_con[[5]])
+        update_goal_val = tryCatch(check_update_con[[5]][[1]], error = function(e) check_update_con[[5]])
+        
+        if(is.na(base_goal_val)) base_goal_val = 0
+        if(is.na(update_goal_val)) update_goal_val = 0
+        
+        goal_flag = ifelse(opti_sign_upper %in% c("MAX", "MAXIMIZE") & (base_goal_val <= update_goal_val), 1,
+                           ifelse(opti_sign_upper %in% c("MIN", "MINIMIZE") & (base_goal_val >= update_goal_val), 1, 0))
+        
+        # Goal safeguard
+        goal_safeguard = 1
+        if(opti_sign_upper %in% c("MAX", "MAXIMIZE")) {
+          if(base_goal_val > 0 && update_goal_val < 0) {
+            goal_safeguard = 0
+          } else if(base_goal_val > 0 && update_goal_val < (base_goal_val * 0.5)) {
+            goal_safeguard = 0
+          } else if(base_goal_val <= 0 && update_goal_val < (base_goal_val * 1.5)) {
+            goal_safeguard = 0
           }
         } else {
-          budget_flag = 0
+          if(base_goal_val < 0 && update_goal_val > 0) {
+            goal_safeguard = 0
+          } else if(base_goal_val < 0 && update_goal_val > (base_goal_val * 0.5)) {
+            goal_safeguard = 0
+          } else if(base_goal_val >= 0 && update_goal_val > (base_goal_val * 1.5)) {
+            goal_safeguard = 0
+          }
         }
         
-        replace_flag_iter[j] = replacement_flag
-        #print(replacement_flag)
+        # GM safeguard
+        base_gm_percent = tryCatch({
+          base_kpi = check_base_con[[6]]
+          if(!is.null(base_kpi) && "GM % NR" %in% names(base_kpi)) {
+            base_kpi[["GM % NR"]]
+          } else { NA }
+        }, error = function(e) NA)
         
-        update_flag = replacement_flag * budget_flag
+        update_gm_percent = tryCatch({
+          update_kpi = check_update_con[[6]]
+          if(!is.null(update_kpi) && "GM % NR" %in% names(update_kpi)) {
+            update_kpi[["GM % NR"]]
+          } else { NA }
+        }, error = function(e) NA)
         
-        update_flag_iter[j] = update_flag
-        #============================================ROI PLACEMENT DONE==================================================#
-        
-        # Calculate sums for prom_update (needed for tracking even if update_flag == 0)
-        update_prom_sums = NULL
-        if(replacement_flag == 1) {
-          update_prom_sums = list(
-            Total_Sales = sum(prom_update$Total_Sales),
-            GM_Abs = sum(prom_update$GM_Abs),
-            BIP = sum(prom_update$BIP),
-            Gross_Sales = sum(prom_update$Gross_Sales),
-            Inc_GM_Abs = sum(prom_update$Inc_GM_Abs),
-            Total_Trade_Investment = sum(prom_update$Total_Trade_Investment),
-            Net_Revenue = sum(prom_update$Net_Revenue),
-            NIS = sum(prom_update$NIS),
-            R_Trade_Inv_Inc = sum(prom_update$R_Trade_Inv_Inc),
-            R_GM_Inc = sum(prom_update$R_GM_Inc),
-            R_NIS_Inc = sum(prom_update$R_NIS_Inc),
-            R_Net_Rev_Inc = sum(prom_update$R_Net_Rev_Inc),
-            Value_Sales = sum(prom_update$Value_Sales)
-          )
+        gm_safeguard = 1
+        # IMPORTANT: GM safeguard is only meaningful when constraint 1 is GM % NR (percent).
+        # If constraint 1 is something else (e.g., Gross Margin absolute), don't apply this rule.
+        if(identical(as.character(con1), "GM_percent_model") && !is.na(con1_min) && con1_min > 0) {
+          if(!is.na(update_gm_percent) && update_gm_percent < 0) {
+            gm_safeguard = 0
+          } else if(!is.na(base_gm_percent) && !is.na(update_gm_percent)) {
+            if(base_gm_percent >= con1_min && update_gm_percent < 0) {
+              gm_safeguard = 0
+            }
+            if(base_gm_percent < 0 && update_gm_percent < base_gm_percent * 1.5) {
+              gm_safeguard = 0
+            }
+          }
         }
         
-        #Run this loop only if budget constraint is okay and ROI was replaced
+        # =========================
+        # STRICT PRIORITY CONSTRAINTS
+        # =========================
+        # Enforce constraints in the user-defined order:
+        # - Find the first violated constraint in the current/base plan
+        # - Only accept candidates that make ALL constraints up to that priority satisfied
+        # This prevents returning plans that still violate Priority 1 (e.g., GM absolute < minimum).
+        base_flags = suppressWarnings(as.numeric(unlist(check_base_con[[1]])))
+        update_flags = suppressWarnings(as.numeric(unlist(check_update_con[[1]])))
+        base_flags[is.na(base_flags)] = 0
+        update_flags[is.na(update_flags)] = 0
         
-        #####DEBUG: When Update is Rejected
-        if(update_flag == 1 && final_flag == 0 && (j %% 1000 == 0 || j <= 20)){
-          cat("WARNING: Update rejected at iteration", j, "| PPG:", ppg, 
-              "| Reason: Constraints not improved\n")
+        first_violated = which(base_flags == 0)[1]
+        if(is.na(first_violated)) first_violated = 7  # all 6 constraints satisfied in base
+        
+        required_idx = if(first_violated >= 1 && first_violated <= 6) 1:first_violated else 1:6
+        required_ok = all(update_flags[required_idx] == 1)
+        
+        final_flag = as.numeric(required_ok) * goal_safeguard * gm_safeguard
+        # If all constraints are already satisfied, require goal to move in the right direction too
+        if(first_violated == 7) {
+          final_flag = final_flag * goal_flag
         }
         
-        if( update_flag == 1 ){   #IF1
-          
-          # Use cached base sums (base_prom_sums) instead of recalculating
-          check_update_con = constraint_fun(
-            update_prom_sums$Total_Sales, update_prom_sums$GM_Abs, update_prom_sums$BIP,
-            update_prom_sums$Gross_Sales, update_prom_sums$Inc_GM_Abs, update_prom_sums$Total_Trade_Investment,
-            update_prom_sums$Net_Revenue, all_other_sales, update_prom_sums$NIS,
-            not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
-            not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
-            exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
-            exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
-            con1, con2, con3, con4, con5, con6,
-            con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
-            con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
-            goal, roi,
-            update_prom_sums$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
-            update_prom_sums$R_GM_Inc, exc_R_GM_Inc, update_prom_sums$R_NIS_Inc, exc_R_NIS_Inc,
-            update_prom_sums$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
-            exc_Value_Sales, not_prom_Value_Sales, update_prom_sums$Value_Sales, all_other_sales_value
-          )
-          
-          # Use cached base constraint check (calculate once, reuse)
-          if(!exists("base_constraint_check")){
-            base_constraint_check = constraint_fun(
-              base_prom_sums$Total_Sales, base_prom_sums$GM_Abs, base_prom_sums$BIP,
-              base_prom_sums$Gross_Sales, base_prom_sums$Inc_GM_Abs, base_prom_sums$Total_Trade_Investment,
-              base_prom_sums$Net_Revenue, all_other_sales, base_prom_sums$NIS,
-              not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
-              not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
-              exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
-              exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
-              con1, con2, con3, con4, con5, con6,
-              con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
-              con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
-              goal, roi,
-              base_prom_sums$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
-              base_prom_sums$R_GM_Inc, exc_R_GM_Inc, base_prom_sums$R_NIS_Inc, exc_R_NIS_Inc,
-              base_prom_sums$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
-              exc_Value_Sales, not_prom_Value_Sales, base_prom_sums$Value_Sales, all_other_sales_value
-            )
-          }
-          check_base_con = base_constraint_check
-          # 
-          #####DEBUG: Constraint Check (every 5000 iterations or when constraints satisfied)
-          if(j %% 5000 == 0 || (j <= 50)){
-            cat("\n--- Constraint Check (Iteration", j, ") ---\n")
-            cat("PPG:", ppg, "| Event ROI:", event$ROI, "\n")
-            if(exists("check_base_con") && !is.null(check_base_con) && !is.null(check_base_con[[1]])){
-              cat("Base Constraints:", 
-                  paste(sapply(1:min(6, length(check_base_con[[1]])), function(x) {
-                    if(!is.null(check_base_con[[1]][[x]])) check_base_con[[1]][[x]] else "NA"
-                  }), collapse = ", "), "\n")
-            }
-            if(exists("check_update_con") && !is.null(check_update_con) && !is.null(check_update_con[[1]])){
-              cat("Update Constraints:", 
-                  paste(sapply(1:min(6, length(check_update_con[[1]])), function(x) {
-                    if(!is.null(check_update_con[[1]][[x]])) check_update_con[[1]][[x]] else "NA"
-                  }), collapse = ", "), "\n")
-            }
-            cat("---\n")
-          }
-          
-          #0. Goal Flag - making sure goal always moves in right direction - always multiplied in final_flag
-          
-          # Initialize flags properly
-          final_flag = 0
-          goal_flag = 0
-          con_satis_flag = 0
-          
-          # Get goal values from constraint checks
-          base_goal_val = if(!is.null(check_base_con) && length(check_base_con) >= 5) check_base_con[[5]] else NA
-          update_goal_val = if(!is.null(check_update_con) && length(check_update_con) >= 5) check_update_con[[5]] else NA
-          
-          # Compare goal values - goal should improve (increase for maximize, decrease for minimize)
-          if(!is.na(base_goal_val) && !is.na(update_goal_val)) {
-            # Check opti_sign to determine if we're maximizing or minimizing
-            if(!is.null(opti_sign) && opti_sign == "minimize") {
-              goal_flag = ifelse(update_goal_val < base_goal_val, 1, 0)  # Minimize: accept if update is smaller
-            } else {
-              goal_flag = ifelse(update_goal_val > base_goal_val, 1, 0)  # Maximize: accept if update is larger (default)
-            }
-            
-            # If goal values are equal, allow the update (goal_flag = 1)
-            # This lets constraint improvements be accepted even if goal doesn't change
-            if(update_goal_val == base_goal_val) {
-              goal_flag = 1
-            }
-          } else {
-            # If goal values are NA, default to allowing update (but constraints will still filter)
-            goal_flag = 1
-          }
-          
-          #####DEBUG: When Constraints Are Satisfied
-          if(con_satis_flag == 1){
-            cat("✓ Constraints satisfied at iteration", j, "| PPG:", ppg, "| Event ROI:", event$ROI, "\n")
-          }
-          
-          # Defensive accessor to avoid out-of-bounds errors when constraint
-          # sublists are missing; returns NA when the requested slot is absent.
-          safe_get <- function(x, i, j){
-            if(!is.null(x) && length(x) >= i && length(x[[i]]) >= j){
-              x[[i]][[j]]
-            } else {
-              NA
-            }
-          }
-          
-          #1. Constraint priority 1
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir1 = safe_get(check_base_con, 3, 1)
-              upd_dir1 = safe_get(check_update_con, 3, 1)
-              base_diff1 = safe_get(check_base_con, 4, 1)
-              upd_diff1 = safe_get(check_update_con, 4, 1)
-              
-              same_side_flag = ifelse(!is.na(base_dir1) && !is.na(upd_dir1) && 
-                                        base_dir1 == upd_dir1, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff1) && !is.na(upd_diff1) && 
-                                       upd_diff1 > base_diff1, 1, 0)
-              final_flag = same_side_flag * diff_dec_flag * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #2. Constraint priority 2
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1 && 
-               !is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1 ){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir2 = safe_get(check_base_con, 3, 2)
-              upd_dir2 = safe_get(check_update_con, 3, 2)
-              base_diff2 = safe_get(check_base_con, 4, 2)
-              upd_diff2 = safe_get(check_update_con, 4, 2)
-              
-              same_side_flag = ifelse(!is.na(base_dir2) && !is.na(upd_dir2) && 
-                                        base_dir2 == upd_dir2, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff2) && !is.na(upd_diff2) && 
-                                       upd_diff2 > base_diff2, 1, 0)
-              
-              #check if con1 is not satisfied in prom_update
-              con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-              
-              final_flag = same_side_flag * diff_dec_flag * con1_flag_in_update * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #3. Constraint priority 3
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 1 && 
-              !is.na(check_base_con[[1]][[3]]) && check_base_con[[1]][[3]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1 && 
-               !is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1 && 
-               !is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir3 = safe_get(check_base_con, 3, 3)
-              upd_dir3 = safe_get(check_update_con, 3, 3)
-              base_diff3 = safe_get(check_base_con, 4, 3)
-              upd_diff3 = safe_get(check_update_con, 4, 3)
-              
-              same_side_flag = ifelse(!is.na(base_dir3) && !is.na(upd_dir3) && 
-                                        base_dir3 == upd_dir3, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff3) && !is.na(upd_diff3) && 
-                                       upd_diff3 > base_diff3, 1, 0)
-              
-              #check if con1, con2 is not satisfied in prom_update
-              con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-              con2_flag_in_update = ifelse(!is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1, 1, 0)
-              
-              final_flag = same_side_flag * diff_dec_flag * con1_flag_in_update * con2_flag_in_update * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #4. Constraint priority 4
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 1 && 
-              !is.na(check_base_con[[1]][[3]]) && check_base_con[[1]][[3]] == 1 &&
-              !is.na(check_base_con[[1]][[4]]) && check_base_con[[1]][[4]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1 && 
-               !is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1 && 
-               !is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1 &&
-               !is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir4 = safe_get(check_base_con, 3, 4)
-              upd_dir4 = safe_get(check_update_con, 3, 4)
-              base_diff4 = safe_get(check_base_con, 4, 4)
-              upd_diff4 = safe_get(check_update_con, 4, 4)
-              
-              same_side_flag = ifelse(!is.na(base_dir4) && !is.na(upd_dir4) && 
-                                        base_dir4 == upd_dir4, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff4) && !is.na(upd_diff4) && 
-                                       upd_diff4 > base_diff4, 1, 0)
-              
-              #check if con1, con2, con3 is not satisfied in prom_update
-              con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-              con2_flag_in_update = ifelse(!is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1, 1, 0)
-              con3_flag_in_update = ifelse(!is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1, 1, 0)
-              
-              final_flag = same_side_flag * diff_dec_flag * con1_flag_in_update * con2_flag_in_update * con3_flag_in_update * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #5. Constraint priority 5
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 1 && 
-              !is.na(check_base_con[[1]][[3]]) && check_base_con[[1]][[3]] == 1 &&
-              !is.na(check_base_con[[1]][[4]]) && check_base_con[[1]][[4]] == 1 && 
-              !is.na(check_base_con[[1]][[5]]) && check_base_con[[1]][[5]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1 && 
-               !is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1 && 
-               !is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1 &&
-               !is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1 && 
-               !is.na(check_update_con[[1]][[5]]) && check_update_con[[1]][[5]] == 1){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir5 = safe_get(check_base_con, 3, 5)
-              upd_dir5 = safe_get(check_update_con, 3, 5)
-              base_diff5 = safe_get(check_base_con, 4, 5)
-              upd_diff5 = safe_get(check_update_con, 4, 5)
-              
-              same_side_flag = ifelse(!is.na(base_dir5) && !is.na(upd_dir5) && 
-                                        base_dir5 == upd_dir5, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff5) && !is.na(upd_diff5) && 
-                                       upd_diff5 > base_diff5, 1, 0)
-              
-              #check if con1, con2, con3, con4 is not satisfied in prom_update
-              con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-              con2_flag_in_update = ifelse(!is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1, 1, 0)
-              con3_flag_in_update = ifelse(!is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1, 1, 0)
-              con4_flag_in_update = ifelse(!is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1, 1, 0)
-              
-              final_flag = same_side_flag * diff_dec_flag * con1_flag_in_update * con2_flag_in_update * con3_flag_in_update *
-                con4_flag_in_update * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #6. Constraint priority 6
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 1 && 
-              !is.na(check_base_con[[1]][[3]]) && check_base_con[[1]][[3]] == 1 &&
-              !is.na(check_base_con[[1]][[4]]) && check_base_con[[1]][[4]] == 1 && 
-              !is.na(check_base_con[[1]][[5]]) && check_base_con[[1]][[5]] == 1 && 
-              !is.na(check_base_con[[1]][[6]]) && check_base_con[[1]][[6]] == 0 ){
-            
-            #check if constraint is satisfied in prom_update. If yes, no need to check same_side_flag and diff_dec_flag
-            
-            if(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1 && 
-               !is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1 && 
-               !is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1 &&
-               !is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1 && 
-               !is.na(check_update_con[[1]][[5]]) && check_update_con[[1]][[5]] == 1 && 
-               !is.na(check_update_con[[1]][[6]]) && check_update_con[[1]][[6]] == 1){
-              con_satis_flag = 1
-              final_flag = con_satis_flag * goal_flag  # Multiply by goal_flag
-              
-            } else {
-              
-              #check if both prom_base and prom_update lie on same side of minimum/maximum
-              base_dir6 = safe_get(check_base_con, 3, 6)
-              upd_dir6 = safe_get(check_update_con, 3, 6)
-              base_diff6 = safe_get(check_base_con, 4, 6)
-              upd_diff6 = safe_get(check_update_con, 4, 6)
-              
-              same_side_flag = ifelse(!is.na(base_dir6) && !is.na(upd_dir6) && 
-                                        base_dir6 == upd_dir6, 1, 0)
-              diff_dec_flag = ifelse(!is.na(base_diff6) && !is.na(upd_diff6) && 
-                                       upd_diff6 > base_diff6, 1, 0)
-              
-              #check if con1, con2, con3, con4, con5 is not satisfied in prom_update
-              con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-              con2_flag_in_update = ifelse(!is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1, 1, 0)
-              con3_flag_in_update = ifelse(!is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1, 1, 0)
-              con4_flag_in_update = ifelse(!is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1, 1, 0)
-              con5_flag_in_update = ifelse(!is.na(check_update_con[[1]][[5]]) && check_update_con[[1]][[5]] == 1, 1, 0)
-              
-              final_flag = same_side_flag * diff_dec_flag * con1_flag_in_update * con2_flag_in_update * con3_flag_in_update *
-                con4_flag_in_update * con5_flag_in_update * goal_flag  # Multiply by goal_flag
-            }
-          }
-          
-          #7. Constraint priority 7
-          if( !is.na(check_base_con[[1]][[1]]) && check_base_con[[1]][[1]] == 1 && 
-              !is.na(check_base_con[[1]][[2]]) && check_base_con[[1]][[2]] == 1 && 
-              !is.na(check_base_con[[1]][[3]]) && check_base_con[[1]][[3]] == 1 &&
-              !is.na(check_base_con[[1]][[4]]) && check_base_con[[1]][[4]] == 1 && 
-              !is.na(check_base_con[[1]][[5]]) && check_base_con[[1]][[5]] == 1 && 
-              !is.na(check_base_con[[1]][[6]]) && check_base_con[[1]][[6]] == 1 ){
-            
-            #check if con1, con2, con3, con4, con5, con6 is not satisfied in prom_update
-            con1_flag_in_update = ifelse(!is.na(check_update_con[[1]][[1]]) && check_update_con[[1]][[1]] == 1, 1, 0)
-            con2_flag_in_update = ifelse(!is.na(check_update_con[[1]][[2]]) && check_update_con[[1]][[2]] == 1, 1, 0)
-            con3_flag_in_update = ifelse(!is.na(check_update_con[[1]][[3]]) && check_update_con[[1]][[3]] == 1, 1, 0)
-            con4_flag_in_update = ifelse(!is.na(check_update_con[[1]][[4]]) && check_update_con[[1]][[4]] == 1, 1, 0)
-            con5_flag_in_update = ifelse(!is.na(check_update_con[[1]][[5]]) && check_update_con[[1]][[5]] == 1, 1, 0)
-            con6_flag_in_update = ifelse(!is.na(check_update_con[[1]][[6]]) && check_update_con[[1]][[6]] == 1, 1, 0)
-            
-            #all constraints satisfied. now check if goal is improving or not - done in point 0.
-            
-            final_flag =   con1_flag_in_update * con2_flag_in_update * con3_flag_in_update *
-              con4_flag_in_update * con5_flag_in_update * con6_flag_in_update * goal_flag
-          }
-          
-        } #IF1
-        
-        
-        # Safety check: handle NA values in final_flag
-        if(is.na(final_flag)) {
-          final_flag = 0
-        }
-        
-        # DO NOT reset check_update_con - it contains the constraint check results!
-        # check_update_con=0  # <-- REMOVED: This was overwriting the constraint check results
-        
-        # Only update prom_base if final_flag == 1 (best iteration)
-        if(final_flag == 1){
-          prom_base <- prom_update
-          # Update cached sums and constraint check when prom_base changes
-          base_prom_sums = update_prom_sums
-          base_constraint_check = check_update_con  # Keep the actual constraint check result
-          # Update track_id_lookup if needed
-          track_id_lookup = split(prom_base$`Track ID`, prom_base$PPG)
-        }
-        
-        final_flag_iter[j] = final_flag
-        
-        # Store constraint checks for iteration tracking
-        if(update_flag == 1 && exists("check_update_con")){
-          check_update_con_iter[[j]] = check_update_con
-          check_base_con_iter[[j]] = check_base_con
-        } else if(!is.null(update_prom_sums)){
-          # Calculate constraint check for tracking even if update_flag == 0
-          check_update_con_iter[[j]] = constraint_fun(
-            update_prom_sums$Total_Sales, update_prom_sums$GM_Abs, update_prom_sums$BIP,
-            update_prom_sums$Gross_Sales, update_prom_sums$Inc_GM_Abs, update_prom_sums$Total_Trade_Investment,
-            update_prom_sums$Net_Revenue, all_other_sales, update_prom_sums$NIS,
-            not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
-            not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
-            exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
-            exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
-            con1, con2, con3, con4, con5, con6,
-            con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
-            con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
-            goal, roi,
-            update_prom_sums$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
-            update_prom_sums$R_GM_Inc, exc_R_GM_Inc, update_prom_sums$R_NIS_Inc, exc_R_NIS_Inc,
-            update_prom_sums$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
-            exc_Value_Sales, not_prom_Value_Sales, update_prom_sums$Value_Sales, all_other_sales_value
-          )
-          check_base_con_iter[[j]] = if(exists("base_constraint_check")) base_constraint_check else NULL
+        if(final_flag == 1) {
+          return(list(
+            accepted = TRUE,
+            score = update_goal_val,
+            event = event,
+            row_idx = row_idx_val,
+            track_id = track_id_val,
+            update_sums = update_sums,
+            check_update_con = check_update_con,
+            replacement_flag = replacement_flag,
+            budget_flag = budget_flag
+          ))
         } else {
-          check_update_con_iter[[j]] = NULL
-          check_base_con_iter[[j]] = NULL
+          return(list(accepted = FALSE, reason = "constraints_not_satisfied"))
         }
         
-        my_check[[j]] = c(event$PPG, event$ROI)
-        
-        #j= j+1
-        
-        
-      } # FOR LOOP 2
+      }, error = function(e) {
+        cat("DEBUG: ERROR in evaluate_candidate_parallel at step:", debug_step, "| Error:", e$message, "\n")
+        return(list(accepted = FALSE, reason = paste("error:", e$message)))
+      })
+    }
+    
+    # Export helper function (functions are already loaded in workers via clusterEvalQ above)
+    clusterExport(cl, "evaluate_candidate_parallel", envir = environment())
+    
+    # ===== GENERATE ALL CANDIDATE COMBINATIONS =====
+    cat("Generating candidate combinations...\n")
+    all_candidates = list()
+    
+    for(i in 1:nrow(events_base)) {
+      event = events_base[i,]
+      track_ids = track_id_lookup[[event$PPG]]
+      if(is.null(track_ids) || length(track_ids) == 0) next
       
-    } # FOR LOOP 1
+      for(track_id in track_ids) {
+        row_idx = track_id_to_row[[as.character(track_id)]]
+        if(is.null(row_idx)) next
+        
+        all_candidates[[length(all_candidates) + 1]] = list(
+          event_idx = i,
+          track_id = track_id,
+          row_idx = row_idx
+        )
+      }
+    }
+    
+    cat("Total candidates to evaluate:", length(all_candidates), "\n")
+    cat("==========================================\n\n")
+    
+    # ===== PARALLEL EVALUATION =====
+    cat("Evaluating candidates in parallel...\n")
+    
+    # Process in batches for better memory management
+    batch_size = 100000
+    all_results = list()
+    # Note: j is already initialized at line 770 for iteration tracking
+    
+    for(batch_start in seq(1, length(all_candidates), by = batch_size)) {
+      batch_end = min(batch_start + batch_size - 1, length(all_candidates))
+      batch_candidates = all_candidates[batch_start:batch_end]
+      
+      batch_results = foreach(i = 1:length(batch_candidates),
+                              .combine = c,
+                              .packages = c("data.table"),
+                              .errorhandling = "pass") %dopar% {
+                                
+                                tryCatch({
+                                  combo = batch_candidates[[i]]
+                                  event = events_base[combo$event_idx,]
+                                  
+                                  result = evaluate_candidate_parallel(
+                                    as.list(event), combo$track_id, combo$row_idx
+                                  )
+                                  
+                                  # Always return the result (even if rejected) so we can see rejection reasons
+                                  if(!is.null(result)) {
+                                    return(list(result))
+                                  } else {
+                                    return(list(list(accepted = FALSE, reason = "null_result")))
+                                  }
+                                }, error = function(e) {
+                                  # Return error info for debugging
+                                  return(list(list(accepted = FALSE, reason = paste("parallel_error:", e$message))))
+                                })
+                              }
+      
+      all_results = c(all_results, batch_results)
+      
+      
+      # Debug: Check batch results
+      if(length(batch_results) > 0) {
+        non_null_count = sum(!sapply(batch_results, is.null))
+        cat(sprintf("Batch %d-%d: %d results, %d non-null\n", 
+                    batch_start, batch_end, length(batch_results), non_null_count))
+      }
+      
+      if(progress && batch_end %% 1000 == 0) {
+        cat(sprintf("Processed %d/%d candidates...\n", batch_end, length(all_candidates)))
+      }
+    }
+    
+    stopCluster(cl)
+    cat("Parallel evaluation complete.\n")
+    cat("Total results collected:", length(all_results), "\n\n")
+    
+    # ===== FILTER AND SORT ACCEPTED RESULTS =====
+    # Filter out NULL results and error results
+    accepted_results = all_results[!sapply(all_results, is.null)]
+    cat("Non-null results:", length(accepted_results), "\n")
+    
+    accepted_results = accepted_results[sapply(accepted_results, function(x) {
+      !is.null(x) && is.list(x) && !is.null(x$accepted) && x$accepted == TRUE
+    })]
+    
+    # Debug: Count rejection reasons
+    if(length(all_results) > 0) {
+      rejection_reasons = sapply(all_results, function(x) {
+        if(is.null(x) || !is.list(x) || is.null(x$accepted)) return("unknown")
+        if(x$accepted) return("accepted")
+        if(!is.null(x$reason)) return(x$reason)
+        return("unknown")
+      })
+      rejection_summary = table(rejection_reasons)
+      cat("Rejection summary:\n")
+      print(rejection_summary)
+      cat("\n")
+    }
+    
+    if(length(accepted_results) > 0) {
+      # Sort by score (best first)
+      scores = sapply(accepted_results, function(x) x$score)
+      accepted_results = accepted_results[order(scores, decreasing = (opti_sign_upper == "MAX"))]
+      
+      cat("Found", length(accepted_results), "accepted candidates. Applying updates...\n")
+      
+      # ===== APPLY UPDATES SEQUENTIALLY =====
+      successful_updates_per_event = rep(0, nrow(events_base))
+      names(successful_updates_per_event) = seq_len(nrow(events_base))
+      
+      applied_count = 0
+      # j is already initialized at line 770, we'll use it to track applied updates
+      # If j hasn't been incremented yet, it will start at 0
+      
+      for(result in accepted_results) {
+        # CRITICAL: Recalculate base constraint check from CURRENT prom_base before re-checking.
+        # The parallel stage evaluated against the initial base snapshot, which becomes stale
+        # once we start applying updates. This ensures we're comparing against the actual current state.
+        base_sums_cache = list(
+          Total_Sales = sum(prom_base$Total_Sales, na.rm = TRUE),
+          GM_Abs = sum(prom_base$GM_Abs, na.rm = TRUE),
+          BIP = sum(prom_base$BIP, na.rm = TRUE),
+          Gross_Sales = sum(prom_base$Gross_Sales, na.rm = TRUE),
+          Inc_GM_Abs = sum(prom_base$Inc_GM_Abs, na.rm = TRUE),
+          Total_Trade_Investment = sum(prom_base$Total_Trade_Investment, na.rm = TRUE),
+          Net_Revenue = sum(prom_base$Net_Revenue, na.rm = TRUE),
+          NIS = sum(prom_base$NIS, na.rm = TRUE),
+          R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc, na.rm = TRUE),
+          R_GM_Inc = sum(prom_base$R_GM_Inc, na.rm = TRUE),
+          R_NIS_Inc = sum(prom_base$R_NIS_Inc, na.rm = TRUE),
+          R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc, na.rm = TRUE),
+          Value_Sales = sum(prom_base$Value_Sales, na.rm = TRUE)
+        )
+        
+        check_base_con_cached = constraint_fun(
+          base_sums_cache$Total_Sales, base_sums_cache$GM_Abs, base_sums_cache$BIP,
+          base_sums_cache$Gross_Sales, base_sums_cache$Inc_GM_Abs,
+          base_sums_cache$Total_Trade_Investment, base_sums_cache$Net_Revenue,
+          all_other_sales, base_sums_cache$NIS,
+          not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+          not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+          exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+          exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+          con1, con2, con3, con4, con5, con6,
+          con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+          con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+          goal, roi,
+          base_sums_cache$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+          base_sums_cache$R_GM_Inc, exc_R_GM_Inc, base_sums_cache$R_NIS_Inc, exc_R_NIS_Inc,
+          base_sums_cache$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+          exc_Value_Sales, not_prom_Value_Sales, base_sums_cache$Value_Sales, all_other_sales_value,
+          scope = "PROMO_ONLY"
+        )
+        
+        # Re-evaluate candidate against CURRENT prom_base before applying.
+        # The parallel stage evaluated against the initial base snapshot, which can become stale
+        # once we start applying updates. This re-check prevents drifting into constraint violations.
+        
+        # Ensure event has all required columns before recheck
+        if(!"Flyer_Flag" %in% names(result$event)) {
+          result$event$Flyer_Flag = 0
+        }
+        if(!"Flyer" %in% names(result$event)) {
+          result$event$Flyer = NA
+        }
+        if(!"Flyer_Cost" %in% names(result$event)) {
+          result$event$Flyer_Cost = 0
+        }
+        
+        recheck = evaluate_candidate_parallel(as.list(result$event), result$track_id, result$row_idx)
+        if(is.null(recheck) || is.null(recheck$accepted) || !isTRUE(recheck$accepted)) {
+          # Debug: log why recheck failed
+          # Safely extract PPG value
+          event_ppg = tryCatch({
+            if(is.list(result$event) && "PPG" %in% names(result$event)) {
+              as.character(result$event$PPG)[1]
+            } else if(is.data.frame(result$event) && "PPG" %in% names(result$event)) {
+              as.character(result$event$PPG[1])
+            } else {
+              "unknown"
+            }
+          }, error = function(e) "unknown")
+          
+          if(!is.null(recheck) && !is.null(recheck$reason)) {
+            cat("Recheck failed - Event:", event_ppg, "| Reason:", recheck$reason, "\n")
+          } else if(is.null(recheck)) {
+            cat("Recheck returned NULL for event:", event_ppg, "\n")
+          }
+          next
+        }
+        
+        j = j + 1  # Increment iteration counter ONLY when we actually apply an update
+        
+        replacement_flag = ifelse(!is.null(recheck$replacement_flag), recheck$replacement_flag, 1)
+        budget_flag = ifelse(!is.null(recheck$budget_flag), recheck$budget_flag, 1)
+        update_flag = replacement_flag * budget_flag
+        final_flag = 1
+        
+        # Store iteration tracking
+        if(j <= length(replace_flag_iter)) {
+          replace_flag_iter[j] = replacement_flag
+          update_flag_iter[j] = update_flag
+          final_flag_iter[j] = final_flag
+          check_base_con_iter[[j]] = check_base_con_cached
+          check_update_con_iter[[j]] = recheck$check_update_con
+        }
+        
+        # Apply update (using the accepted candidate from current-state recheck)
+        prom_base = update_base(prom_base, recheck$event, recheck$row_idx)
+        
+        # Update cache with CURRENT accepted update results
+        base_sums_cache = recheck$update_sums
+        check_base_con_cached = recheck$check_update_con
+        track_id_to_row = setNames(seq_len(nrow(prom_base)), as.character(prom_base$`Track ID`))
+        
+        # Track successful update
+        event_idx = which(events_base$PPG == recheck$event$PPG & 
+                            events_base$ROI == recheck$event$ROI &
+                            events_base$Display_Flag == recheck$event$Display_Flag)[1]
+        if(!is.na(event_idx)) {
+          successful_updates_per_event[event_idx] = successful_updates_per_event[event_idx] + 1
+        }
+        
+        applied_count = applied_count + 1
+        if(applied_count >= 5000) break
+      }
+      
+      cat("Applied", applied_count, "updates to prom_base\n")
+      cat("Total iterations tracked:", j, "\n")
+    } else {
+      cat("No accepted candidates found\n")
+    }
+    
+    # Note: successful_updates_per_event is already initialized above, no need to reinitialize
+    
+    # Track consecutive EVENT failures (not iteration failures) to detect if we're stuck
+    consecutive_event_failures = 0
+    max_consecutive_event_failures = 10000  # If 20 consecutive events fail, we might be done
+    # write.csv(all_results,"all.csv")
+    if(FALSE)  
+      
+      # ORIGINAL SEQUENTIAL LOOP (commented out - replaced by parallel processing above)
+      # for( i in 1:nrow(events_base)){   #------------------------------------------------------------FOR LOOP 1
+      
+      # ORIGINAL NESTED LOOPS REPLACED BY PARALLEL PROCESSING ABOVE
+      # The parallel processing evaluates all candidates and applies the best ones sequentially
+      # This preserves all constraint logic, goal optimization, and safeguards
+      
+      # OLD CODE (commented out - replaced by parallel processing):
+      # if(stop_opt == 1) break  # Early exit if optimization stopped
+      # 
+      # #Extract event (try ALL events, not just best ROI)
+      # event = events_base[i,]
+      # 
+      # # Track if this event resulted in any successful updates (reset for each event)
+      # event_successful_updates = 0
+      # 
+      # # Fast lookup using pre-computed hash map
+      # track_id = track_id_lookup[[event$PPG]]
+      # if(is.null(track_id) || length(track_id) == 0) next
+      # 
+      # progress_total = (nrow(events_base) * length(track_id))
+      # 
+      # #Loop over each track id
+      # for(id in track_id){    #---------------------------------------------------------------------FOR LOOP 2
+      
+      # OLD NESTED LOOP CODE - COMMENTED OUT (replaced by parallel processing above)
+      # The code below is kept for reference but is no longer executed
+      
+      # replacement_flag = 0
+      # final_flag = 0
+      # con_satis_flag = 0
+      # j = j+1
+      # #print(j)
+      # if(progress) incProgress((1/progress_total),detail = paste("Iteration", j))
+      # 
+      # # Fast row lookup using pre-computed index
+      # row_to_change = track_id_to_row[[as.character(id)]]
+      # if(is.null(row_to_change)) {
+      #   replace_flag_iter[j] = 0
+      #   update_flag_iter[j] = 0
+      #   final_flag_iter[j] = 0
+      #   next
+      # }
+      # 
+      # #Get Info if it is discount only slot, display only slot or both discount/display slot
+      # # Read from prom_base directly (no need for prom_update yet)
+      # flag_check = as.numeric(prom_base[row_to_change,"Flag_Check"])
+      # ROI = as.numeric(prom_base[row_to_change,"ROI"])
+      # counter_check = as.numeric(prom_base[row_to_change,"Flag_Check_Counter"])
+      # extra_slot_flag  = as.numeric(prom_base[row_to_change,"Extra_Slot_Flag"])
+      # ppg = as.character(event$PPG)
+      
+      # OLD CODE CONTINUED - ALL COMMENTED OUT (replaced by parallel processing)
+      # #Update slot in prom_update based on criteria's - Vectorized check
+      # #1. All possibilities where display_flag = 0
+      # if(event$Display_Flag == 0 &  flag_check == 0 & extra_slot_flag == 0 ){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 0 &  flag_check == 0 & extra_slot_flag == 1 & ROI > event$ROI ){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 0){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 0 & flag_check == 2 & counter_check == 1 & ROI > event$ROI){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 1 &  flag_check == 1 & ROI > event$ROI ){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 0){
+      #   replacement_flag = 1
+      # } else if(event$Display_Flag == 1 & flag_check == 2 & counter_check == 1 & ROI > event$ROI){
+      #   replacement_flag = 1
+      # }
+      # 
+      # # Early exit if no replacement needed - skip expensive operations
+      # if(replacement_flag == 0) {
+      #   replace_flag_iter[j] = 0
+      #   update_flag_iter[j] = 0
+      #   final_flag_iter[j] = 0
+      #   next
+      # }
+      # 
+      # # Only create copy when replacement is needed
+      # prom_update = copy(prom_base)  # Use data.table::copy() for efficiency
+      # prom_update = update_base(prom_update, event, row_to_change)
+      # 
+      #     # Only check budget if replacement happened
+      #     if(replacement_flag == 1) {
+      #       budget_check_result = budget_check(prom_update, not_prom, ppg, budget_const)
+      #       # Accept updates when budget is "below" (need to add more) or "between" (within range)
+      #       # Only reject when "above" (exceeds maximum)
+      #       budget_flag = ifelse(budget_check_result[[1]] %in% c("below", "between"), 1, 0)
+      #       
+      #       # Debug: Log budget rejections (first 10 and then every 100th)
+      #       if(budget_flag == 0 && (j <= 10 || j %% 100 == 0)) {
+      #         cat(sprintf("Budget rejection at iteration %d: Status=%s, Investment=%.2f, Min=%.2f, Max=%.2f\n",
+      #                     j, budget_check_result[[1]], budget_check_result$Investment_ppg,
+      #                     budget_check_result$Min_Inv_Req, budget_check_result$Max_Inv_Req))
+      #       }
+      #     } else {
+      #       budget_flag = 0
+      #     }
+      #     
+      #     replace_flag_iter[j] = replacement_flag
+      #     #print(replacement_flag)
+      #     
+      #     update_flag = replacement_flag * budget_flag
+      #     
+      #     update_flag_iter[j] = update_flag
+      #     #============================================ROI PLACEMENT DONE==================================================#
+      #     
+      #     # Early exit if budget constraint fails
+      #     if(update_flag == 0) {
+      #       final_flag_iter[j] = 0
+      #       next
+      #     }
+      #     
+      #     #Run this loop only if budget constraint is okay and ROI was replaced
+      #     
+      #     if( update_flag == 1 ){   #IF1
+      #       
+      #       # ===== OPTIMIZED SUM CALCULATION =====
+    #       # Only calculate sums when update_flag == 1
+    #       # Use na.rm = TRUE for robustness
+    #       update_sums = list(
+    #         Total_Sales = sum(prom_update$Total_Sales, na.rm = TRUE),
+    #         GM_Abs = sum(prom_update$GM_Abs, na.rm = TRUE),
+    #         BIP = sum(prom_update$BIP, na.rm = TRUE),
+    #         Gross_Sales = sum(prom_update$Gross_Sales, na.rm = TRUE),
+    #         Inc_GM_Abs = sum(prom_update$Inc_GM_Abs, na.rm = TRUE),
+    #         Total_Trade_Investment = sum(prom_update$Total_Trade_Investment, na.rm = TRUE),
+    #         Net_Revenue = sum(prom_update$Net_Revenue, na.rm = TRUE),
+    #         NIS = sum(prom_update$NIS, na.rm = TRUE),
+    #         R_Trade_Inv_Inc = sum(prom_update$R_Trade_Inv_Inc, na.rm = TRUE),
+    #         R_GM_Inc = sum(prom_update$R_GM_Inc, na.rm = TRUE),
+    #         R_NIS_Inc = sum(prom_update$R_NIS_Inc, na.rm = TRUE),
+    #         R_Net_Rev_Inc = sum(prom_update$R_Net_Rev_Inc, na.rm = TRUE),
+    #         Value_Sales = sum(prom_update$Value_Sales, na.rm = TRUE)
+    #       )
+    #       
+    #       # Constraint check only when needed - use cached base sums
+    #       check_update_con = constraint_fun(
+    #         update_sums$Total_Sales, update_sums$GM_Abs, update_sums$BIP,
+    #         update_sums$Gross_Sales, update_sums$Inc_GM_Abs,
+    #         update_sums$Total_Trade_Investment, update_sums$Net_Revenue,
+    #         all_other_sales, update_sums$NIS,
+    #         not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+    #         not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+    #         exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+    #         exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+    #         con1, con2, con3, con4, con5, con6,
+    #         con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+    #         con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+    #         goal, roi,
+    #         update_sums$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+    #         update_sums$R_GM_Inc, exc_R_GM_Inc, update_sums$R_NIS_Inc, exc_R_NIS_Inc,
+    #         update_sums$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+    #         exc_Value_Sales, not_prom_Value_Sales, update_sums$Value_Sales, all_other_sales_value
+    #       )
+    #       
+    #       # Use cached base constraint check (recalculate only when prom_base changes)
+    #       check_base_con = check_base_con_cached
+    #       
+    #       #0. Goal Flag - making sure goal always moves in right direction - always multiplied in final_flag
+    #       # opti_sign_upper already calculated above
+    #       
+    #           #       base_goal_val = tryCatch(check_base_con[[5]][[1]], error = function(e) check_base_con[[5]])
+    #       update_goal_val = tryCatch(check_update_con[[5]][[1]], error = function(e) check_update_con[[5]])
+    #       
+    #       # Handle NA values
+    #       if(is.na(base_goal_val)) base_goal_val = 0
+    #       if(is.na(update_goal_val)) update_goal_val = 0
+    #       
+    #       goal_flag = ifelse( opti_sign_upper %in% c("MAX", "MAXIMIZE") &  (base_goal_val <= update_goal_val),1,
+    #                           ifelse(opti_sign_upper %in% c("MIN", "MINIMIZE") &  (base_goal_val >= update_goal_val),1,0))
+    #       
+    #       # GOAL SAFEGUARD: Prevent goal from going negative when it was positive, or getting significantly worse
+    #       # Reject updates that make goal negative when base was positive (unless it's a small negative)
+    #       goal_safeguard = 1
+    #       if(opti_sign_upper %in% c("MAX", "MAXIMIZE")) {
+    #         # For maximize: reject if goal goes from positive to negative, or if it decreases by more than 50%
+    #         if(base_goal_val > 0 && update_goal_val < 0) {
+    #           goal_safeguard = 0  # Reject: going from positive to negative
+    #         } else if(base_goal_val > 0 && update_goal_val < (base_goal_val * 0.5)) {
+    #           goal_safeguard = 0  # Reject: goal decreased by more than 50%
+    #         } else if(base_goal_val <= 0 && update_goal_val < (base_goal_val * 1.5)) {
+    #           goal_safeguard = 0  # Reject: if already negative, don't make it much worse (50% worse)
+    #         }
+    #       } else {
+    #         # For minimize: reject if goal goes from negative to positive, or if it increases by more than 50%
+    #         if(base_goal_val < 0 && update_goal_val > 0) {
+    #           goal_safeguard = 0  # Reject: going from negative to positive
+    #         } else if(base_goal_val < 0 && update_goal_val > (base_goal_val * 0.5)) {
+    #           goal_safeguard = 0  # Reject: goal increased by more than 50% (less negative)
+    #         } else if(base_goal_val >= 0 && update_goal_val > (base_goal_val * 1.5)) {
+    #           goal_safeguard = 0  # Reject: if already positive, don't make it much worse (50% worse)
+    #         }
+    #       }
+    #       
+    #       # CONSTRAINT 1 (GM % NR) SAFEGUARD: Prevent GM % NR from going/staying negative if it has a positive minimum
+    #       # Extract GM % NR from constraint check (it's in the KPI dataframe)
+    #       base_gm_percent = tryCatch({
+    #         base_kpi = check_base_con[[6]]
+    #         if(!is.null(base_kpi) && "GM % NR" %in% names(base_kpi)) {
+    #           base_kpi[["GM % NR"]]
+    #         } else {
+    #           NA
+    #         }
+    #       }, error = function(e) NA)
+    #       
+    #       update_gm_percent = tryCatch({
+    #         update_kpi = check_update_con[[6]]
+    #         if(!is.null(update_kpi) && "GM % NR" %in% names(update_kpi)) {
+    #           update_kpi[["GM % NR"]]
+    #         } else {
+    #           NA
+    #         }
+    #       }, error = function(e) NA)
+    #       
+    #       gm_safeguard = 1
+    #       if(!is.na(con1_min) && con1_min > 0) {
+    #         # If GM % NR has a positive minimum constraint, reject updates that make it negative
+    #         if(!is.na(update_gm_percent) && update_gm_percent < 0) {
+    #           gm_safeguard = 0  # Reject: GM % NR is negative when minimum is positive
+    #         } else if(!is.na(base_gm_percent) && !is.na(update_gm_percent)) {
+    #           # If base was positive or at least above minimum, don't let it go negative
+    #           if(base_gm_percent >= con1_min && update_gm_percent < 0) {
+    #             gm_safeguard = 0  # Reject: going from acceptable to negative
+    #           }
+    #           # If both are negative but update is worse (more negative), reject if it's significantly worse
+    #           if(base_gm_percent < 0 && update_gm_percent < base_gm_percent * 1.5) {
+    #             gm_safeguard = 0  # Reject: making negative GM % NR significantly worse
+    #           }
+    #         }
+    #       }
+    #       
+    #       # All constraint priority logic (1-7) would go here - commented out as it's in parallel function
+    #       
+    #     } #IF1
+    #     
+    #     if(final_flag == 1){
+    #       prom_base = prom_update
+    #       # Update cache when prom_base changes
+    #       base_sums_cache = update_sums
+    #       check_base_con_cached = check_update_con
+    #       # Update row index lookup if Track IDs changed (unlikely but safe)
+    #       track_id_to_row = setNames(seq_len(nrow(prom_base)), as.character(prom_base$`Track ID`))
+    #       
+    #       # Track successful update for this event
+    #       event_successful_updates = event_successful_updates + 1
+    #       # Don't reset consecutive_event_failures here - reset it at event level after loop
+    #     }
+    #     
+    #     final_flag_iter[j] = final_flag
+    #     
+    #     # Store iteration results (only when needed for debugging/tracking)
+    #     # Store every iteration for first 1000, then every 1000th iteration to save memory
+    #     if(j <= 1000 || j %% 1000 == 0) {
+    #       if(update_flag == 1) {
+    #         # Use already calculated values if available
+    #         check_update_con_iter[[j]] = check_update_con
+    #         check_base_con_iter[[j]] = check_base_con
+    #       } else {
+    #         # Calculate only if not already done (shouldn't happen often)
+    #         update_sums_iter = list(
+    #           Total_Sales = sum(prom_update$Total_Sales, na.rm = TRUE),
+    #           GM_Abs = sum(prom_update$GM_Abs, na.rm = TRUE),
+    #           BIP = sum(prom_update$BIP, na.rm = TRUE),
+    #           Gross_Sales = sum(prom_update$Gross_Sales, na.rm = TRUE),
+    #           Inc_GM_Abs = sum(prom_update$Inc_GM_Abs, na.rm = TRUE),
+    #           Total_Trade_Investment = sum(prom_update$Total_Trade_Investment, na.rm = TRUE),
+    #           Net_Revenue = sum(prom_update$Net_Revenue, na.rm = TRUE),
+    #           NIS = sum(prom_update$NIS, na.rm = TRUE),
+    #           R_Trade_Inv_Inc = sum(prom_update$R_Trade_Inv_Inc, na.rm = TRUE),
+    #           R_GM_Inc = sum(prom_update$R_GM_Inc, na.rm = TRUE),
+    #           R_NIS_Inc = sum(prom_update$R_NIS_Inc, na.rm = TRUE),
+    #           R_Net_Rev_Inc = sum(prom_update$R_Net_Rev_Inc, na.rm = TRUE),
+    #           Value_Sales = sum(prom_update$Value_Sales, na.rm = TRUE)
+    #         )
+    #         check_update_con_iter[[j]] = constraint_fun(
+    #           update_sums_iter$Total_Sales, update_sums_iter$GM_Abs, update_sums_iter$BIP,
+    #           update_sums_iter$Gross_Sales, update_sums_iter$Inc_GM_Abs,
+    #           update_sums_iter$Total_Trade_Investment, update_sums_iter$Net_Revenue,
+    #           all_other_sales, update_sums_iter$NIS,
+    #           not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+    #           not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+    #           exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+    #           exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+    #           con1, con2, con3, con4, con5, con6,
+    #           con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+    #           con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+    #           goal, roi,
+    #           update_sums_iter$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+    #           update_sums_iter$R_GM_Inc, exc_R_GM_Inc, update_sums_iter$R_NIS_Inc, exc_R_NIS_Inc,
+    #           update_sums_iter$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+    #           exc_Value_Sales, not_prom_Value_Sales, update_sums_iter$Value_Sales, all_other_sales_value
+    #         )
+    #         check_base_con_iter[[j]] = check_base_con_cached
+    #       }
+    #       my_check[[j]] = c(event$PPG, event$ROI)
+    #     }
+    #     
+    #     #j= j+1
+    #     
+    #     
+    # } # FOR LOOP 2 (commented out - replaced by parallel processing)
+    # 
+    # # Track successful updates for this event
+    # successful_updates_per_event[i] = event_successful_updates
+    # 
+    # # Reset consecutive event failures if this event had any successful updates
+    # if(event_successful_updates > 0) {
+    #   consecutive_event_failures = 0
+    # } else {
+    #   consecutive_event_failures = consecutive_event_failures + 1
+    # }
+    # 
+    # # Progress reporting every 10 events
+    # if(i %% 10 == 0 || i == nrow(events_base)) {
+    #   cat(sprintf("Processed %d/%d events | Successful updates: %d | Consecutive event failures: %d\n", 
+    #               i, nrow(events_base), sum(successful_updates_per_event[1:i]), consecutive_event_failures))
+    # }
+    # 
+    # # REMOVED: Early exit logic - process ALL events to ensure comprehensive optimization
+    # # The optimizer will now iterate through all events regardless of consecutive failures
+    # # This ensures all possible improvements are explored
+    # 
+    # } # FOR LOOP 1 (commented out - replaced by parallel processing)
+    
+    #####DEBUG: Event Iteration Summary (updated for parallel processing)
+    cat("\n========== PARALLEL OPTIMIZATION SUMMARY ==========\n")
+    cat("Total events processed:", nrow(events_base), "\n")
+    #  cat("Total successful updates:", sum(successful_updates_per_event), "\n")
+    cat("Events with most updates:\n")
+    #top_events = head(sort(successful_updates_per_event, decreasing = TRUE), 10)
+    #if(length(top_events) > 0 && sum(top_events) > 0) {
+    # top_event_indices = as.numeric(names(top_events[top_events > 0]))
+    #if(length(top_event_indices) > 0) {
+    # print(events_base[top_event_indices, c("PPG", "ROI", "Display_Flag", "Discount", "Display")])
+    #}
+    #}
+    cat("==========================================\n\n")
     
   } #Stop_Opt
   
+  # ===== FINAL STRICT CONSTRAINT VALIDATION =====
+  # Do not return a plan that violates user-input constraints.
+  # Ensure check_base_con_cached exists (initialize if it doesn't, e.g., if stop_opt == 1)
+  if(!exists("check_base_con_cached")) {
+    # Calculate from current prom_base
+    base_sums_final = list(
+      Total_Sales = sum(prom_base$Total_Sales, na.rm = TRUE),
+      GM_Abs = sum(prom_base$GM_Abs, na.rm = TRUE),
+      BIP = sum(prom_base$BIP, na.rm = TRUE),
+      Gross_Sales = sum(prom_base$Gross_Sales, na.rm = TRUE),
+      Inc_GM_Abs = sum(prom_base$Inc_GM_Abs, na.rm = TRUE),
+      Total_Trade_Investment = sum(prom_base$Total_Trade_Investment, na.rm = TRUE),
+      Net_Revenue = sum(prom_base$Net_Revenue, na.rm = TRUE),
+      NIS = sum(prom_base$NIS, na.rm = TRUE),
+      R_Trade_Inv_Inc = sum(prom_base$R_Trade_Inv_Inc, na.rm = TRUE),
+      R_GM_Inc = sum(prom_base$R_GM_Inc, na.rm = TRUE),
+      R_NIS_Inc = sum(prom_base$R_NIS_Inc, na.rm = TRUE),
+      R_Net_Rev_Inc = sum(prom_base$R_Net_Rev_Inc, na.rm = TRUE),
+      Value_Sales = sum(prom_base$Value_Sales, na.rm = TRUE)
+    )
+    
+    check_base_con_cached = constraint_fun(
+      base_sums_final$Total_Sales, base_sums_final$GM_Abs, base_sums_final$BIP,
+      base_sums_final$Gross_Sales, base_sums_final$Inc_GM_Abs,
+      base_sums_final$Total_Trade_Investment, base_sums_final$Net_Revenue,
+      all_other_sales, base_sums_final$NIS,
+      not_prom_Total_Sales, not_prom_GM_Abs, not_prom_BIP, not_prom_Gross_Sales,
+      not_prom_Net_Revenue, not_prom_NIS, not_prom_Total_Trade_Investment,
+      exc_Total_Sales, exc_GM_Abs, exc_BIP, exc_Gross_Sales, exc_Inc_GM,
+      exc_Total_Trade_Investment, exc_Net_Revenue, exc_NIS,
+      con1, con2, con3, con4, con5, con6,
+      con1_min, con2_min, con3_min, con4_min, con5_min, con6_min,
+      con1_max, con2_max, con3_max, con4_max, con5_max, con6_max,
+      goal, roi,
+      base_sums_final$R_Trade_Inv_Inc, exc_R_Trade_Inv_Inc, not_prom_R_Trade_Inv_Inc,
+      base_sums_final$R_GM_Inc, exc_R_GM_Inc, base_sums_final$R_NIS_Inc, exc_R_NIS_Inc,
+      base_sums_final$R_Net_Rev_Inc, exc_R_Net_Rev_Inc,
+      exc_Value_Sales, not_prom_Value_Sales, base_sums_final$Value_Sales, all_other_sales_value,
+      scope = "PROMO_ONLY"
+    )
+  }
   
-  x = data.table(replace_flag_iter,update_flag_iter,final_flag_iter)
+  final_flags = suppressWarnings(as.numeric(unlist(check_base_con_cached[[1]])))
+  final_flags[is.na(final_flags)] = 0
+  if(length(final_flags) > 0 && any(final_flags == 0)) {
+    # Helpful decomposition so users can see whether the issue is driven by promo vs non-promo vs excluded rows
+    prom_gm = tryCatch(sum(prom_base$GM_Abs, na.rm = TRUE), error = function(e) NA_real_)
+    not_prom_gm = tryCatch(sum(not_prom$GM_Abs, na.rm = TRUE), error = function(e) NA_real_)
+    exc_gm = tryCatch(sum(exc_brand$GM_Abs, na.rm = TRUE), error = function(e) NA_real_)
+    tot_gm = sum(c(prom_gm, not_prom_gm, exc_gm), na.rm = TRUE)
+    
+    prom_nr = tryCatch(sum(prom_base$Net_Revenue, na.rm = TRUE), error = function(e) NA_real_)
+    not_prom_nr = tryCatch(sum(not_prom$Net_Revenue, na.rm = TRUE), error = function(e) NA_real_)
+    exc_nr = tryCatch(sum(exc_brand$Net_Revenue, na.rm = TRUE), error = function(e) NA_real_)
+    tot_nr = sum(c(prom_nr, not_prom_nr, exc_nr), na.rm = TRUE)
+    
+    tot_gm_percent = ifelse(!is.na(tot_gm) && !is.na(tot_nr) && tot_nr != 0, tot_gm * 100 / tot_nr, NA_real_)
+    
+    failed_idx = which(final_flags == 0)
+    failed_names = tryCatch({
+      as.character(shiny_const$KPI[failed_idx])
+    }, error = function(e) paste0("Constraint_", failed_idx))
+    failed_vals = tryCatch({
+      as.numeric(unlist(check_base_con_cached[[2]]))[failed_idx]
+    }, error = function(e) rep(NA_real_, length(failed_idx)))
+    failed_mins = tryCatch({
+      as.numeric(shiny_const$`Minimum Value`[failed_idx])
+    }, error = function(e) rep(NA_real_, length(failed_idx)))
+    failed_maxs = tryCatch({
+      as.numeric(shiny_const$`Maximum Value`[failed_idx])
+    }, error = function(e) rep(NA_real_, length(failed_idx)))
+    
+    msg_lines = paste0(
+      "- ", failed_names,
+      " (value=", round(failed_vals, 6),
+      ", min=", round(failed_mins, 6),
+      ", max=", round(failed_maxs, 6), ")"
+    )
+    
+    # Calculate PROMO_ONLY totals for the warning message
+    prom_gm_only = tryCatch(sum(prom_base$GM_Abs, na.rm = TRUE), error = function(e) NA_real_)
+    prom_nr_only = tryCatch(sum(prom_base$Net_Revenue, na.rm = TRUE), error = function(e) NA_real_)
+    prom_gm_percent_only = ifelse(!is.na(prom_gm_only) && !is.na(prom_nr_only) && prom_nr_only != 0, prom_gm_only * 100 / prom_nr_only, NA_real_)
+    
+    # Issue warning instead of stopping - return best plan found
+    warning_msg = paste(
+      "WARNING: Optimization completed but some constraints are not fully satisfied.",
+      "Constraint scope is PROMO_ONLY (only the optimized promotional plan).",
+      paste0(
+        "Promo-only totals: ",
+        "GM=", round(prom_gm_only, 6),
+        " | NR=", round(prom_nr_only, 6),
+        " | GM%NR=", round(prom_gm_percent_only, 6)
+      ),
+      "The final plan still violates:",
+      paste(msg_lines, collapse = "\n"),
+      sep = "\n"
+    )
+    warning(warning_msg)
+    cat("\n", warning_msg, "\n\n")
+  }
+  
+  if(FALSE)  
+    x = data.table(replace_flag_iter,update_flag_iter,final_flag_iter)
+  
   opti_output = data.table(smartbind(prom_base,not_prom))
   opti_output$`Track ID` = as.numeric(opti_output$`Track ID`)
   opti_output = opti_output[order(opti_output$`Track ID`, decreasing = F),]
@@ -2323,6 +2529,7 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   opti_output[is.na(opti_output)] = 0
   
   out_path = "C:/"
+  
   
   kpi_iteration <- data.frame()
   if(length(check_base_con_iter) != 0 && j > 0){
@@ -2358,7 +2565,7 @@ optimization <- function(brand,shiny_const,budget_const,all_other_sales,opti_goa
   cat("KPI iterations tracked:", nrow(kpi_iteration), "\n")
   cat("==========================================\n\n")
   
-  # write.csv(opti_output,paste0(out_path,"Output_sample.csv"), row.names = F)
+  write.csv(opti_output,"Output_sample.csv")
   # write.csv(exc_brand,paste0(out_path,"Excluded_Brand.csv"), row.names = F)
   
   return(list(opti_output,exc_brand,kpi_iteration,budget_info))
@@ -2372,8 +2579,20 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   
   #Filter data between start and end date (no week end date adjustment)
   base_tesco = base_tesco[Date>= start_date & Date <= end_date]
-  
+  opti_out$Event_Lift
  
+   if(length(include_ppg) == 1 && grepl("ALL", include_ppg, ignore.case = TRUE)) {
+    # Get all unique PPGs from the data sources
+    all_ppgs = unique(c(
+      unique(opti_out$PPG),
+      unique(base_tesco$PPG)
+      
+    ))
+    # Remove any NA values
+    all_ppgs = all_ppgs[!is.na(all_ppgs)]
+    include_ppg = all_ppgs
+  }
+  
   ####Take Care of  FORMAT
   if( sum(grepl("ALL", include_format)) == 1 ){
     include_format = unique(base_tesco$FORMAT)
@@ -2385,7 +2604,7 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   }
   
   #1.1 Get required data only
-   
+  
   base_tesco[
     order(Date),
     `:=`(
@@ -2395,16 +2614,12 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
     by = .(Tesco_Week_No)          # or .(PPG, Tesco_Week_No) if you need per PPG
   ]
   
-  opti_out_prom = opti_out[Seq == 1 & Extra_Slot_Flag == 1]
+  opti_out_prom = opti_out[Seq == 1]
   
   opti_out_prom = opti_out_prom[,.(PPG, `SECTOR 2`,`TRADING COMPANY`,`PRODUCT RANGE`, FORMAT,PPG_Description, Tesco_Week_No,`Start Date`,`End Date`,Discount,Display,
-                                   Display_Cost, Event_Multiplier_Tesco,Display_Flag, Promo_Price)]   
+                                   Display_Cost, Event_Multiplier_Tesco,Display_Flag,Flyer_Flag, Promo_Price)]   
   opti_out_prom = opti_out_prom[,TPR_Flag := 1]
   
-  if(sum(is.infinite(opti_out_prom$Event_Multiplier_Tesco), na.rm=TRUE) > 0){
-    cat("\nSample rows with Inf Event_Multiplier_Tesco:\n")
-    print(opti_out_prom[is.infinite(Event_Multiplier_Tesco), .(PPG, Event_Multiplier_Tesco, Discount, Display_Flag)][1:5])
-  }
   
   #keep only selected FORMAT from tesco_base
   base_tesco = base_tesco[ FORMAT %in% include_format ]
@@ -2417,35 +2632,48 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   
   #1.2 Join the data
   
-
+  
   
   opti_out_prom$Tesco_Week_No=as.numeric(opti_out_prom$Tesco_Week_No)
- #aggreagation
+  #aggreagation
+  static_cols <- c(
+    "Net_Cost_Unit","COGS_Unit","VAT","BIP_Case","OID","No_Of_Units",
+    "STP_Unit","UNCR_Unit","OID_Unit","FM_Abs_Unit_1","RSP_Unit"
+  )
+ 
   df_sum <- base_tesco %>%
-    group_by(Tesco_Week_No) %>%
+    group_by(PPG, `SECTOR 2`, `TRADING COMPANY`, `PRODUCT RANGE`, FORMAT, PPG_Description, Tesco_Week_No) %>%
     summarise(
+      # keep text/date columns
       across(where(is.character), first),
-      across(where(is.Date),     first),
-      RSP_Unit = first(RSP_Unit),                          # do NOT sum
-      across(where(is.numeric) & !all_of("RSP_Unit"), sum, na.rm = TRUE),
+      across(where(is.Date), first),
+      
+      # keep these numeric columns static (do NOT sum)
+      across(all_of(static_cols), first),
+      
+      # sum all other numeric columns (excluding static ones)
+      across(where(is.numeric) & !all_of(static_cols), ~sum(.x, na.rm = TRUE)),
+      
       .groups = "drop"
     )
   
+ 
   tesco_full_cal = merge(df_sum,opti_out_prom, by = c("PPG","SECTOR 2","TRADING COMPANY","PRODUCT RANGE", "FORMAT","PPG_Description",
-                                                          "Tesco_Week_No","Start Date","End Date"), all.x = T)
+                                                      "Tesco_Week_No","Start Date","End Date"), all.x = T)
   tesco_full_cal[is.na(tesco_full_cal)] = 0
   
-  
+ 
   setDT(tesco_full_cal)
   #1.3 Divide the display cost by slot duration (dynamic, not fixed 3)
   # If slot duration is available, use it; otherwise default to 3
-  if("Slot_Duration" %in% names(tesco_full_cal)){
+  if("Duration" %in% names(tesco_full_cal)){
     tesco_full_cal[,Display_Cost := Display_Cost/Slot_Duration]
   } else {
     tesco_full_cal[,Display_Cost := Display_Cost/3]  # Default fallback
   }
-  
+ 
   #1.4 Calculate everything
+  
   tesco_full_cal[,Event_Lift := Event_Multiplier_Tesco * Base_Units]
   tesco_full_cal[,Total_Sales := Base_Units + Event_Lift]
   tesco_full_cal[,Promo_Price := RSP_Unit*(1-Discount)]
@@ -2461,7 +2689,7 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   tesco_full_cal[,Net_Revenue := Gross_Sales - Total_Trade_Investment]                                        #addon
   tesco_full_cal[,NIS := Gross_Sales - UNCR_Total - OID_Total]                                                #addon
   
-  tesco_full_cal$Total_Trade_Investment
+  
   tesco_full_cal[,BIP := Total_Sales*Net_Cost_Unit]
   tesco_full_cal[,COGS_Total := Total_Sales* COGS_Unit]
   tesco_full_cal[,GM_Abs := Net_Revenue - COGS_Total ]                                                        #modified
@@ -2484,23 +2712,15 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   tesco_full_cal[,R_NIS_Inc := (STP_Unit - (RSP_Unit - Promo_Price) - OID_Unit)*Event_Lift]                             #addon2
   tesco_full_cal[,R_Net_Rev_Inc := R_NIS_Inc - R_Retro_Inc - R_Display_Cost ]                            #addon2
   tesco_full_cal[,R_GM_Inc := R_Net_Rev_Inc - (COGS_Unit*Event_Lift)]                                    #addon2
-  tesco_full_cal[,ROI := R_GM_Inc / R_Trade_Inv_Inc]
-
+  
   tesco_full_cal[,Value_Sales := ifelse(Promo_Price == 0, Total_Sales*RSP_Unit, Total_Sales*Promo_Price)]     #addon3
- 
- 
- 
- tesco_full_cal[, Duration := abs(as.numeric(`End Date` - `Start Date`))]
- 
- # Export Final Calendar to CSV - using Linux-compatible path
- output_csv_path <- file.path("/app/backend/r_engine", "12 Final Calendar Tesco.csv")
- tryCatch({
-   write.csv(tesco_full_cal, output_csv_path, row.names = FALSE)
-   cat("[EXPORT] Wrote tesco_full_cal to:", output_csv_path, "\n")
- }, error = function(e) {
-   cat("[EXPORT ERROR] Failed to write CSV:", as.character(e), "\n")
- })
-
+  
+  
+  
+  tesco_full_cal[, Duration := abs(as.numeric(`End Date` - `Start Date`))]
+  
+  
+  
   return(tesco_full_cal)
 }
 
@@ -2709,12 +2929,6 @@ simulator <- function(opti_cal,exc_brand,event,event_to_replace,other_sales,all_
     setnames(event,"Promo Slots","Event ID")
   }
   
-  # Guard: Check if event_to_replace is empty
-  if (is.null(event_to_replace) || nrow(event_to_replace) == 0) {
-    cat("[SIMULATOR WARNING] event_to_replace is empty, creating from event\n")
-    event_to_replace <- event
-  }
-  
   idx = which(opti_cal$PPG == event$PPG & opti_cal$Tesco_Week_No == as.numeric(str_split(event$`Event ID`,pattern = "-")[[1]][2]))
   
   ###Adding event selected to all_events list
@@ -2731,11 +2945,15 @@ simulator <- function(opti_cal,exc_brand,event,event_to_replace,other_sales,all_
   summary_df_event = data.frame()
   df_list = list()
   LSM_Violate_list = list()
+  
+  
   for (i in 1:nrow(event_to_replace)){
     
     LSM_Violated = FALSE
     #Get info about which replace_row to replace
     replacement = event_to_replace[i,]
+    #replacement = event_to_replace[1,]
+    
     #
     if(i == nrow(event_to_replace)){
       
@@ -2746,7 +2964,7 @@ simulator <- function(opti_cal,exc_brand,event,event_to_replace,other_sales,all_
       event_info = all_events[all_events$PPG == replacement$PPG & all_events$`Event ID` == replacement$`Event ID`,]
       #make a copy of opti_cal
       df = opti_cal
-      df$Display_Flag
+      
       
       if((unique(df[idx,]$Display_Flag) != event_info$Display_Flag)){
         LSM_Violated = TRUE

@@ -3,7 +3,7 @@ rm(list=ls())
 #--------------------------install required packages---------------------------#
 # install.packages("devtools")
 # library(devtools)
-# install_github("gyang274/shinydashboard")
+# install_github("gyang274/ygdashboard")
 
 
 #------------------------------------------------------------------------------#
@@ -11,7 +11,7 @@ rm(list=ls())
 #------------------------------------------------------------------------------#
 #update.packages(ask = FALSE)
 if(!require('shiny'))install.packages('shiny')
-if(!require('shinydashboard'))install.packages('shinydashboard')
+if(!require('ygdashboard'))install.packages('ygdashboard')
 if(!require('shinythemes'))install.packages('shinythemes')
 if(!require('readxl'))install.packages('readxl')
 if(!require('shinyFiles'))install.packages('shinyFiles')
@@ -539,7 +539,7 @@ promo_cal_structure <- function(data){
   date_selected$`Year Name` <- year(date_selected$Date)
   #month_no_mapping <- data.frame("Month"=month.name,"Weeks" = rep(c(4,4,5),4))
   #date_selected <- left_join(date_selected,month_no_mapping,by = c("Month Name" = "Month"))
-  month_selected <- data.table(date_selected)[,list("Weeks"= .N),by = list(`Month Name`,`Year Name`)]
+  month_selected <- data.table(date_selected)[,.("Weeks"= .N),by = .(`Month Name`,`Year Name`)]
   cont <- "<th colspan = '4'>Month</th>"
   for(i in c(1:nrow(month_selected))){
     cont <- paste0(cont,"<th colspan = '",month_selected[i,"Weeks"],"'>",month_selected[i,"Month Name"],"</th>")
@@ -555,7 +555,7 @@ promo_cal_structure <- function(data){
   #date_selected$`Year Name` <- year(date_selected$Date)
   #month_no_mapping <- data.frame("Month"=month.name,"Weeks" = rep(c(4,4,5),4))
   #date_selected <- left_join(date_selected,month_no_mapping,by = c("Month Name" = "Month"))
-  #month_selected <- data.table(date_selected)[,list("Weeks"= .N),by = list(`Month Name`,`Year Name`)]
+  #month_selected <- data.table(date_selected)[,.("Weeks"= .N),by = .(`Month Name`,`Year Name`)]
   #cont <- "<th colspan = '5'>Month</th>"
   #for(i in c(1:nrow(month_selected))){
    # cont <- paste0(cont,"<th colspan = '",month_selected[i,"Weeks"],"'>",month_selected[i,"Month Name"],"</th>")
@@ -574,7 +574,7 @@ promo_cal_structure_output <- function(data) {
   dt[, `End Date`   := as.Date(`End Date`)]
   
   # one row per slot (Tesco_Week_No is your slot id)
-  slots <- unique(dt[,list(
+  slots <- unique(dt[, .(
     Slot_Number = Tesco_Week_No,
     Slot_Start  = `Start Date`,
     Slot_End    = `End Date`
@@ -891,13 +891,13 @@ KPI_calc <- function(tpo_list,opti_op_lsm,opti_op_nonlsm,exc_brand_lsm,exc_brand
 
 KPI_calc_input <- function(opti_op,roi_selected){
   
-  output <- opti_op[,list(
+  output <- opti_op[,.(
     "End Date"=`End Date`,
     "Duration"= Duration,
     "Net Invoice Sales" = sum(NIS),"CPD" = sum(Retro_Funding_Total), "TI" = sum(Total_Trade_Investment),"Scan Net Revenue" = sum(Net_Revenue),"Gross Margin" = sum(GM_Abs), "GM % NR" = sum(GM_Abs) * 100/sum(Net_Revenue),
                        "Trade ROI" = ifelse(roi_selected == "Incremental GM ROI",sum(Inc_GM_Abs)/sum(Total_Trade_Investment),ifelse(roi_selected == "Incremental NR ROI",sum(Inc_Revenue)/sum(Total_Trade_Investment),sum(Inc_NIS)/sum(Total_Trade_Investment))),
                        "Inc_GM_Abs" = sum(Inc_GM_Abs), "TI % NR" = sum(Total_Trade_Investment) * 100/sum(Net_Revenue), "CPD % NIS" = sum(Retro_Funding_Total) * 100/sum(NIS), "Total_Sales" = sum(Total_Sales),
-                       "RSV" = sum(Retailer_Revenue),"COGS" = sum(Net_Cost_Unit * Total_Sales),"Front Margin" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales), "FM %" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales)/sum(Retailer_Revenue/1.2), "Fixed" = sum(Display_Cost), "Back Margin" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales) + sum(Display_Cost), "BM %" = (sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales) + sum(Display_Cost))/sum(Retailer_Revenue/1.2)),by = list(`Start Date`)]
+                       "RSV" = sum(Retailer_Revenue),"COGS" = sum(Net_Cost_Unit * Total_Sales),"Front Margin" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales), "FM %" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales)/sum(Retailer_Revenue/1.2), "Fixed" = sum(Display_Cost), "Back Margin" = sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales) + sum(Display_Cost), "BM %" = (sum(((Promo_Price/1.2) - Net_Cost_Unit + Retro_Funding_Unit) * Total_Sales) + sum(Display_Cost))/sum(Retailer_Revenue/1.2)),by = .(`Start Date`)]
   
   
   return(output)
