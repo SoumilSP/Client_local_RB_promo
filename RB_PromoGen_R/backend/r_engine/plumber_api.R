@@ -2084,21 +2084,42 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         }
         
         # Ensure events have ROI column (optimization uses this at line 790: events_base[,"ROI"] = events_base[,roi, with = FALSE])
-        if (!"ROI" %in% names(shiny_ip_events)) {
-          # Component 9 has ROI_GM, ROI_Rev, ROI_NIS - use ROI_GM for optimization
+        # CRITICAL FIX: The optimization function expects the column name passed in `roi` parameter to exist
+        # We need to ensure consistency between the column we create and the parameter we pass
+        
+        # Determine which ROI column to use based on roi_type
+        roi_column_to_use <- if (roi_type == "Incremental NR ROI") "ROI_NR" else "ROI_GM"
+        
+        # Check if the target ROI column exists, if not try to create it
+        if (!roi_column_to_use %in% names(shiny_ip_events)) {
+          cat("[R-14] Target ROI column '", roi_column_to_use, "' not found in events\n")
+          
+          # Try to use ROI_GM as fallback
           if ("ROI_GM" %in% names(shiny_ip_events)) {
-            shiny_ip_events[, ROI := ROI_GM]
-            log_msg("[R-14] Using existing ROI_GM column as ROI")
+            shiny_ip_events[, (roi_column_to_use) := ROI_GM]
+            log_msg(paste("[R-14] Created", roi_column_to_use, "from ROI_GM"))
           } else if ("Inc_GM_Abs" %in% names(shiny_ip_events) && "Trade_Investment" %in% names(shiny_ip_events)) {
-            shiny_ip_events[, ROI := round(Inc_GM_Abs / pmax(Trade_Investment, 1), 2)]
-            cat("[R-14] Calculated ROI from Inc_GM_Abs / Trade_Investment\n")
+            shiny_ip_events[, (roi_column_to_use) := round(Inc_GM_Abs / pmax(Trade_Investment, 1), 2)]
+            cat("[R-14] Calculated", roi_column_to_use, "from Inc_GM_Abs / Trade_Investment\n")
           } else {
-            shiny_ip_events[, ROI := round(runif(.N, 2.5, 5.5), 2)]
-            cat("[R-14] Generated random ROI values (fallback)\n")
+            shiny_ip_events[, (roi_column_to_use) := round(runif(.N, 2.5, 5.5), 2)]
+            cat("[R-14] Generated random", roi_column_to_use, "values (fallback)\n")
           }
         } else {
-          cat("[R-14] ROI column already exists in events\n")
+          cat("[R-14]", roi_column_to_use, "column already exists in events\n")
         }
+        
+        # ALSO ensure the generic 'ROI' column exists (some code paths may expect this)
+        if (!"ROI" %in% names(shiny_ip_events)) {
+          if ("ROI_GM" %in% names(shiny_ip_events)) {
+            shiny_ip_events[, ROI := ROI_GM]
+            log_msg("[R-14] Also created ROI column from ROI_GM for compatibility")
+          }
+        }
+        
+        # Log available ROI columns for debugging
+        roi_cols <- grep("^ROI", names(shiny_ip_events), value = TRUE)
+        cat("[R-14] Available ROI columns in events:", paste(roi_cols, collapse=", "), "\n")
         
         # PREPARE BRAND DATA DIRECTLY (bypassing best_seq which needs specific UI-prepared data)
         # The optimization() function at lines 697-703 modifies brand to copy from events_base
@@ -2696,7 +2717,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
           cat("        - ppg_slots (prod_const):", nrow(prod_const), "rows\n")
           cat("        - last_year_kpi:", nrow(last_year_kpi), "rows\n")
           cat("        - include_format:", paste(include_format, collapse=", "), "\n")
-          cat("        - roi:", ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI"), "\n")
+          cat("        - roi:", ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"), "\n")
           cat("        - include_ppg:", paste(include_ppg_list, collapse=", "), "\n")
           cat("        - start_date:", as.character(start_date_val), "\n")
           cat("        - end_date:", as.character(end_date_val), "\n")
@@ -2713,7 +2734,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
             exclude_ppg = exclude_ppg_list,        # PPGs to exclude
             last_year_kpi = last_year_kpi,         # Nielsen data with dates
             include_format = include_format,       # Format filters
-            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI"),
+            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
             all_other_sales_value = other_sales_value,
             include_ppg = include_ppg_list,
             start_date = start_date_val,
@@ -2745,7 +2766,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
             exclude_ppg = exclude_ppg_list,
             last_year_kpi = last_year_kpi,
             include_format = include_format,
-            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI"),
+            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
             all_other_sales_value = other_sales_value,
             include_ppg = include_ppg_list,
             start_date = start_date_val,
@@ -2776,7 +2797,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
               exclude_ppg = exclude_ppg_list,
               last_year_kpi = last_year_kpi,
               include_format = include_format,
-              roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI"),
+              roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
               all_other_sales_value = other_sales_value,
               include_ppg = include_ppg_list,
               start_date = start_date_val,
@@ -2803,7 +2824,7 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
             exclude_ppg = exclude_ppg_list,
             last_year_kpi = last_year_kpi,
             include_format = include_format,
-            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI"),
+            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
             all_other_sales_value = other_sales_value,
             include_ppg = include_ppg_list,
             start_date = start_date_val,
@@ -3746,8 +3767,15 @@ function() {
               gm <- if ("GM_Abs" %in% names(ppg_data)) as.numeric(ppg_data$GM_Abs[row_idx]) else nr * 0.25
               inc_gm <- if ("Inc_GM_Abs" %in% names(ppg_data)) as.numeric(ppg_data$Inc_GM_Abs[row_idx]) else gm * 0.3
               
-              # Calculate ROI
-              roi <- if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
+              # Get ROI from optimizer output - prefer ROI_GM column, then ROI, then calculate as fallback
+              roi <- if ("ROI_GM" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$ROI_GM[row_idx]))) {
+                as.numeric(ppg_data$ROI_GM[row_idx])
+              } else if ("ROI" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$ROI[row_idx]))) {
+                as.numeric(ppg_data$ROI[row_idx])
+              } else if ("R_ROI_GM" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$R_ROI_GM[row_idx]))) {
+                as.numeric(ppg_data$R_ROI_GM[row_idx])
+              } else if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
+                # Only calculate as fallback if ROI column doesn't exist
                 round(inc_gm / ts, 2)
               } else {
                 0
@@ -4027,8 +4055,15 @@ function() {
             discount <- 0
           }
           
-          # Calculate ROI
-          roi <- if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
+          # Get ROI from optimizer output - prefer ROI_GM column, then ROI, then calculate as fallback
+          roi <- if ("ROI_GM" %in% names(row) && !is.na(as.numeric(row$ROI_GM))) {
+            as.numeric(row$ROI_GM)
+          } else if ("ROI" %in% names(row) && !is.na(as.numeric(row$ROI))) {
+            as.numeric(row$ROI)
+          } else if ("R_ROI_GM" %in% names(row) && !is.na(as.numeric(row$R_ROI_GM))) {
+            as.numeric(row$R_ROI_GM)
+          } else if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
+            # Only calculate as fallback if ROI column doesn't exist
             round(inc_gm / ts, 2)
           } else {
             0
