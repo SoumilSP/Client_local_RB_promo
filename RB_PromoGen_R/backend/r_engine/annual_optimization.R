@@ -2484,7 +2484,8 @@ optimizer_op_prep <- function(opti_out,base_tesco,exclude_ppg,include_format,inc
   tesco_full_cal[,R_NIS_Inc := (STP_Unit - (RSP_Unit - Promo_Price) - OID_Unit)*Event_Lift]                             #addon2
   tesco_full_cal[,R_Net_Rev_Inc := R_NIS_Inc - R_Retro_Inc - R_Display_Cost ]                            #addon2
   tesco_full_cal[,R_GM_Inc := R_Net_Rev_Inc - (COGS_Unit*Event_Lift)]                                    #addon2
-  
+  tesco_full_cal[,ROI := R_GM_Inc / R_Trade_Inv_Inc]
+
   tesco_full_cal[,Value_Sales := ifelse(Promo_Price == 0, Total_Sales*RSP_Unit, Total_Sales*Promo_Price)]     #addon3
  
  

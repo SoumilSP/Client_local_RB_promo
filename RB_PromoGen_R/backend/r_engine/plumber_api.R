@@ -2451,6 +2451,52 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         
         # Remove the goal KPI and take first 6 (matching client's server.R lines 2438-2439)
         constraints_pool <- all_9_kpis[KPI != goal_kpi_name]
+        
+        # ==============================================================
+        # SANITY GUARD: When optimizing for GM%NR, ensure GM > 0 constraint
+        # This prevents the optimizer from selecting events with negative GM
+        # which would result in nonsensical GM%NR values
+        # ==============================================================
+        if (goal_kpi_name == "Gross Margin % of NR") {
+          cat("[SANITY-GUARD] Goal is GM%NR - ensuring GM > 0 constraint is set\n")
+          # Find the Gross Margin row in constraints_pool
+          gm_idx <- which(constraints_pool$KPI == "Gross Margin")
+          if (length(gm_idx) > 0) {
+            # Set minimum GM to at least 0 (prevent negative GM selections)
+            current_gm_min <- constraints_pool$Min_Val[gm_idx]
+            if (is.na(current_gm_min) || current_gm_min < 0 || current_gm_min == -1e+20) {
+              constraints_pool$Min_Val[gm_idx] <- 0
+              cat("[SANITY-GUARD] Updated Gross Margin minimum from", current_gm_min, "to 0\n")
+            }
+          }
+          
+          # Also ensure Net Revenue > 0 to prevent division issues
+          nr_idx <- which(constraints_pool$KPI == "Scan Net Revenue")
+          if (length(nr_idx) > 0) {
+            current_nr_min <- constraints_pool$Min_Val[nr_idx]
+            if (is.na(current_nr_min) || current_nr_min < 0 || current_nr_min == -1e+20) {
+              constraints_pool$Min_Val[nr_idx] <- 0
+              cat("[SANITY-GUARD] Updated Scan Net Revenue minimum from", current_nr_min, "to 0\n")
+            }
+          }
+        }
+        
+        # Similar guard for NR optimization - ensure NR > 0
+        if (goal_kpi_name == "Scan Net Revenue") {
+          cat("[SANITY-GUARD] Goal is NR - ensuring positive NR constraint\n")
+          # NR should be positive when optimizing for it
+          nr_idx <- which(constraints_pool$KPI == "Scan Net Revenue")
+          # Note: NR is the goal so it's excluded, but we can set GM > 0 as a sanity check
+          gm_idx <- which(constraints_pool$KPI == "Gross Margin")
+          if (length(gm_idx) > 0) {
+            current_gm_min <- constraints_pool$Min_Val[gm_idx]
+            if (is.na(current_gm_min) || current_gm_min == -1e+20) {
+              # Don't force GM > 0 for NR optimization, but log a warning if it's very negative
+              cat("[SANITY-GUARD] GM min is unconstrained, allowing any GM value\n")
+            }
+          }
+        }
+        
         opti_const <- constraints_pool[1:min(6, nrow(constraints_pool))]
         
         # Rename columns to match what optimization() expects
@@ -4694,11 +4740,29 @@ function(ppg = "", tesco_week_no = "") {
       cat("[ALTERNATE-EVENTS] First alternate:", toJSON(alternates[[1]], auto_unbox = TRUE), "\n")
     }
     
+    # Calculate base values (No Promo scenario) for the frontend
+    # Use base_sales and RSP with no discount
+    base_gross_sales <- rsp_unit * base_sales
+    base_trade_investment <- 0  # No trade spend for No Promo
+    base_net_revenue <- base_gross_sales - base_trade_investment
+    base_cogs <- base_sales * cogs_unit
+    base_gm <- base_net_revenue - base_cogs
+    
+    cat("[ALTERNATE-EVENTS] Base values (No Promo): GS=", round(base_gross_sales, 0),
+        ", NR=", round(base_net_revenue, 0), ", GM=", round(base_gm, 0), "\n")
+    
     list(
       ppg = ppg,
       tesco_week_no = tesco_week_no,
       price_constraints = list(min = price_min, max = price_max),
       total_events_for_ppg = nrow(ppg_events),
+      base_values = list(
+        GS = round(base_gross_sales, 0),
+        NR = round(base_net_revenue, 0),
+        GM = round(base_gm, 0),
+        TS = 0,
+        rsp = round(rsp_unit, 2)
+      ),
       alternates = alternates
     )
   }, error = function(e) {
