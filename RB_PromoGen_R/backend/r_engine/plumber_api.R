@@ -1055,13 +1055,153 @@ function() {
   }
   cat("[FILTERS] Returning", length(final_ppgs), "PPGs\n")
   
+  # Build PPG to Category mapping (using PRODUCT RANGE or CATEGORY column)
+  # This enables the frontend to filter PPGs based on selected category
+  ppg_category_map <- list()
+  ppg_descriptions <- list()
+  
+  # First try to get mappings from nielsen_data, then fallback to shiny_ip_events
+  tryCatch({
+    # Try to load shiny_ip_events which has the PRODUCT RANGE mapping
+    events_data <- NULL
+    
+    # Check data_prep_op[[9]] for shiny_ip_events
+    if (exists("data_prep_op", envir = .GlobalEnv)) {
+      dp <- get("data_prep_op", envir = .GlobalEnv)
+      if (is.list(dp) && length(dp) >= 9 && !is.null(dp[[9]]) && nrow(dp[[9]]) > 0) {
+        events_data <- dp[[9]]
+        cat("[FILTERS] Using shiny_ip_events from data_prep_op[[9]]:", nrow(events_data), "rows\n")
+        cat("[FILTERS] shiny_ip_events columns:", paste(head(names(events_data), 15), collapse=", "), "\n")
+      }
+    }
+    
+    # If not in memory, try loading from CSV
+    if (is.null(events_data) || nrow(events_data) == 0) {
+      events_csv_path <- file.path(DATA_DIR, "shiny_ip_events.csv")
+      if (file.exists(events_csv_path)) {
+        events_data <- read.csv(events_csv_path, stringsAsFactors = FALSE)
+        cat("[FILTERS] Loaded shiny_ip_events.csv:", nrow(events_data), "rows\n")
+        cat("[FILTERS] CSV columns:", paste(head(names(events_data), 15), collapse=", "), "\n")
+      }
+    }
+    
+    # Use events_data for mappings if available
+    mapping_source <- if (!is.null(events_data) && nrow(events_data) > 0 && "PRODUCT RANGE" %in% names(events_data)) {
+      events_data
+    } else {
+      nielsen_data
+    }
+    
+    cat("[FILTERS] Using mapping source with", nrow(mapping_source), "rows\n")
+    
+    # Get the category column - prefer PRODUCT RANGE, fallback to CATEGORY
+    category_col <- NULL
+    for (col in c("PRODUCT RANGE", "Product Range", "product_range", "PRODUCT.RANGE", "CATEGORY", "Category")) {
+      if (col %in% names(mapping_source)) {
+        category_col <- col
+        break
+      }
+    }
+    
+    # Get the PPG column
+    ppg_col <- NULL
+    for (col in c("PPG", "ppg", "Ppg")) {
+      if (col %in% names(mapping_source)) {
+        ppg_col <- col
+        break
+      }
+    }
+    
+    # Get the description column
+    desc_col <- NULL
+    for (col in c("PPG_Description", "LDESC", "ldesc", "Ldesc", "Description", "ppg_description")) {
+      if (col %in% names(mapping_source)) {
+        desc_col <- col
+        break
+      }
+    }
+    
+    cat("[FILTERS] Using columns - PPG:", ppg_col, ", Category:", category_col, ", Description:", desc_col, "\n")
+    
+    # Build the mappings from unique PPG rows
+    if (!is.null(ppg_col) && !is.null(category_col)) {
+      # Get unique PPGs to avoid duplicate processing
+      unique_ppgs <- unique(mapping_source[[ppg_col]])
+      cat("[FILTERS] Found", length(unique_ppgs), "unique PPGs to map\n")
+      
+      for (ppg_val in unique_ppgs) {
+        if (!is.na(ppg_val) && nchar(as.character(ppg_val)) > 0) {
+          # Get first row with this PPG
+          ppg_rows <- mapping_source[mapping_source[[ppg_col]] == ppg_val, ]
+          if (nrow(ppg_rows) > 0) {
+            cat_val <- ppg_rows[[category_col]][1]
+            if (!is.na(cat_val) && nchar(as.character(cat_val)) > 0) {
+              ppg_category_map[[as.character(ppg_val)]] <- as.character(cat_val)
+            }
+            
+            # Also get description
+            if (!is.null(desc_col)) {
+              desc_val <- ppg_rows[[desc_col]][1]
+              if (!is.na(desc_val) && nchar(as.character(desc_val)) > 0) {
+                ppg_descriptions[[as.character(ppg_val)]] <- as.character(desc_val)
+              }
+            }
+          }
+        }
+      }
+      
+      cat("[FILTERS] Built PPG-Category mapping with", length(ppg_category_map), "entries\n")
+      cat("[FILTERS] Built PPG-Description mapping with", length(ppg_descriptions), "entries\n")
+      
+      # Debug: Show sample mappings
+      if (length(ppg_category_map) > 0) {
+        sample_keys <- head(names(ppg_category_map), 5)
+        for (k in sample_keys) {
+          cat("[FILTERS] Sample mapping:", k, "->", ppg_category_map[[k]], "\n")
+        }
+      }
+    }
+  }, error = function(e) {
+    cat("[FILTERS] Error building PPG mappings:", as.character(e), "\n")
+    cat("[FILTERS] Traceback:", paste(capture.output(traceback()), collapse="\n"), "\n")
+  })
+  
+  # Get unique categories (from PRODUCT RANGE or CATEGORY column)
+  # Try shiny_ip_events first for categories
+  categories_from_data <- character(0)
+  tryCatch({
+    events_csv_path <- file.path(DATA_DIR, "shiny_ip_events.csv")
+    if (file.exists(events_csv_path)) {
+      events_for_cats <- read.csv(events_csv_path, stringsAsFactors = FALSE)
+      if ("PRODUCT RANGE" %in% names(events_for_cats)) {
+        categories_from_data <- unique(events_for_cats$`PRODUCT RANGE`)
+        categories_from_data <- categories_from_data[!is.na(categories_from_data)]
+        cat("[FILTERS] Got categories from shiny_ip_events.csv:", paste(categories_from_data, collapse=", "), "\n")
+      }
+    }
+  }, error = function(e) {
+    cat("[FILTERS] Error getting categories from CSV:", as.character(e), "\n")
+  })
+  
+  # Fallback to nielsen_data for categories
+  if (length(categories_from_data) == 0) {
+    categories_from_data <- get_unique_values(nielsen_data, c("PRODUCT RANGE", "Product Range", "CATEGORY", "Category"))
+  }
+  cat("[FILTERS] Final categories count:", length(categories_from_data), "\n")
+  
   list(
     data_source = "data_prep_op",
     customers = customers_list,
-    categories = get_unique_values(nielsen_data, c("Category", "CATEGORY")),
-    brands = get_unique_values(nielsen_data, c("Brand", "BRAND")),
+    categories = categories_from_data,
+    # 'brands' now contains category values for backward compatibility with frontend
+    brands = categories_from_data,
     formats = get_unique_values(nielsen_data, c("Format", "FORMAT")),
     ppgs = final_ppgs,
+    # PPG to Category mapping for filtering
+    ppgToBrand = ppg_category_map,
+    ppg_category_map = ppg_category_map,
+    # PPG descriptions for display
+    ppg_descriptions = ppg_descriptions,
     # Also return the configured values
     configured_retailer = configured_retailer,
     configured_manufacturer = configured_manufacturer,

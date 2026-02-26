@@ -96,6 +96,10 @@ class FilterOptions(BaseModel):
     formats: List[str]
     ppgs: List[str]
     manufacturers: List[str]
+    # New fields for PPG-to-Category filtering
+    ppgToBrand: Optional[Dict[str, str]] = {}  # PPG code -> Category name mapping
+    ppg_category_map: Optional[Dict[str, str]] = {}  # Alias for ppgToBrand
+    ppg_descriptions: Optional[Dict[str, str]] = {}  # PPG code -> Description mapping
 
 class PromotionEvent(BaseModel):
     id: str
@@ -417,7 +421,7 @@ def generate_scenario_comparison() -> List[Dict[str, Any]]:
 
 @router.get("/filters")
 async def get_filter_options():
-    """Get available filter options from R API - NO MOCK DATA"""
+    """Get available filter options from R API or fallback to CSV data"""
     r_data = await get_r_data("analytics/filters")
     
     if r_data and "error" not in r_data:
@@ -432,6 +436,15 @@ async def get_filter_options():
                 return [item[0] if isinstance(item, list) and len(item) == 1 else item for item in val]
             return [val]  # Wrap any other single value in a list
         
+        # Helper to ensure value is a dict (for mappings)
+        def ensure_dict(val):
+            if val is None:
+                return {}
+            if isinstance(val, dict):
+                # Unbox single-element arrays in dict values
+                return {k: (v[0] if isinstance(v, list) and len(v) == 1 else v) for k, v in val.items()}
+            return {}
+        
         countries = ensure_list(r_data.get("countries", ["UAE"]))
         customers = ensure_list(r_data.get("customers", []))
         categories = ensure_list(r_data.get("categories", []))
@@ -440,6 +453,17 @@ async def get_filter_options():
         ppgs = ensure_list(r_data.get("ppgs", []))
         manufacturers = ensure_list(r_data.get("manufacturers", []))
         
+        # Extract PPG mappings for filtering
+        ppg_to_brand = ensure_dict(r_data.get("ppgToBrand", {}))
+        ppg_category_map = ensure_dict(r_data.get("ppg_category_map", {}))
+        ppg_descriptions = ensure_dict(r_data.get("ppg_descriptions", {}))
+        
+        # Use ppg_category_map if ppgToBrand is empty
+        if not ppg_to_brand and ppg_category_map:
+            ppg_to_brand = ppg_category_map
+        
+        print(f"[FILTERS] R API returned {len(ppgs)} PPGs, {len(ppg_to_brand)} ppgToBrand mappings, {len(ppg_descriptions)} descriptions")
+        
         return FilterOptions(
             countries=countries,
             customers=customers,
@@ -447,10 +471,67 @@ async def get_filter_options():
             brands=brands,
             formats=formats,
             ppgs=ppgs,
-            manufacturers=manufacturers
+            manufacturers=manufacturers,
+            ppgToBrand=ppg_to_brand,
+            ppg_category_map=ppg_category_map,
+            ppg_descriptions=ppg_descriptions
         )
     
-    # Return empty data if R API not available - NO MOCK DATA
+    # FALLBACK: R API not available - try to load from shiny_ip_events.csv
+    print("[FILTERS] R API not available, falling back to CSV data")
+    try:
+        import pandas as pd
+        DATA_DIR = os.getenv("DATA_DIR", "/app/data")
+        csv_path = os.path.join(DATA_DIR, "shiny_ip_events.csv")
+        
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            print(f"[FILTERS] Loaded shiny_ip_events.csv with {len(df)} rows, columns: {list(df.columns)}")
+            
+            # Extract unique values
+            ppgs = df['PPG'].dropna().unique().tolist() if 'PPG' in df.columns else []
+            
+            # Categories come from PRODUCT RANGE column
+            categories = df['PRODUCT RANGE'].dropna().unique().tolist() if 'PRODUCT RANGE' in df.columns else []
+            
+            # Customers from TRADING COMPANY
+            customers = df['TRADING COMPANY'].dropna().unique().tolist() if 'TRADING COMPANY' in df.columns else ['Carrefour']
+            
+            # Formats
+            formats = df['FORMAT'].dropna().unique().tolist() if 'FORMAT' in df.columns else []
+            
+            # Build PPG to Category mapping
+            ppg_to_brand = {}
+            ppg_descriptions = {}
+            
+            if 'PPG' in df.columns:
+                for _, row in df.drop_duplicates(subset=['PPG']).iterrows():
+                    ppg = str(row['PPG'])
+                    if 'PRODUCT RANGE' in df.columns and pd.notna(row.get('PRODUCT RANGE')):
+                        ppg_to_brand[ppg] = str(row['PRODUCT RANGE'])
+                    if 'PPG_Description' in df.columns and pd.notna(row.get('PPG_Description')):
+                        ppg_descriptions[ppg] = str(row['PPG_Description'])
+            
+            print(f"[FILTERS] CSV fallback: {len(ppgs)} PPGs, {len(categories)} categories, {len(ppg_to_brand)} mappings, {len(ppg_descriptions)} descriptions")
+            print(f"[FILTERS] Categories found: {categories}")
+            print(f"[FILTERS] Sample ppgToBrand: {dict(list(ppg_to_brand.items())[:5])}")
+            
+            return FilterOptions(
+                countries=["UAE"],
+                customers=customers,
+                categories=categories,
+                brands=categories,  # Use categories as brands for backward compatibility
+                formats=formats,
+                ppgs=ppgs,
+                manufacturers=["Reckitt"],
+                ppgToBrand=ppg_to_brand,
+                ppg_category_map=ppg_to_brand,
+                ppg_descriptions=ppg_descriptions
+            )
+    except Exception as e:
+        print(f"[FILTERS] CSV fallback error: {e}")
+    
+    # Return empty data if all else fails
     return FilterOptions(
         countries=[],
         customers=[],
@@ -458,7 +539,10 @@ async def get_filter_options():
         brands=[],
         formats=[],
         ppgs=[],
-        manufacturers=[]
+        manufacturers=[],
+        ppgToBrand={},
+        ppg_category_map={},
+        ppg_descriptions={}
     )
 
 
