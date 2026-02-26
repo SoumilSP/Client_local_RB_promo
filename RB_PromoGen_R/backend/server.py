@@ -1016,6 +1016,29 @@ async def proxy_r_post(path: str, request: Request, body: dict = None):
                 r_params['start_month'] = filters.get('startMonth', 'Jan')
                 r_params['end_month'] = filters.get('endMonth', 'Dec')
             
+            # Handle per-PPG restrictions for multi-PPG optimization
+            # Check if we have per-PPG restrictions from the frontend
+            restrictions_per_ppg = body.get('restrictionsPerPpg', None)
+            ppg_list = filters.get('ppg', '').split(',') if ',' in str(filters.get('ppg', '')) else []
+            
+            if restrictions_per_ppg and len(ppg_list) > 1:
+                # Multiple PPGs with per-PPG restrictions - serialize to JSON for R
+                import json
+                logger.info(f"[7] Multi-PPG mode: {len(ppg_list)} PPGs with per-PPG restrictions")
+                for ppg in ppg_list:
+                    ppg_restrictions = restrictions_per_ppg.get(ppg, {})
+                    logger.info(f"    - {ppg}: price={ppg_restrictions.get('priceMin')}-{ppg_restrictions.get('priceMax')}, investment={ppg_restrictions.get('minInvestment')}-{ppg_restrictions.get('maxInvestment')}")
+                
+                # For now, when multiple PPGs, use the restrictions of the first PPG as default
+                # The R optimizer will handle each PPG with its specific constraints via include_ppg
+                first_ppg = ppg_list[0] if ppg_list else None
+                if first_ppg and first_ppg in restrictions_per_ppg:
+                    restrictions = restrictions_per_ppg[first_ppg]
+                    logger.info(f"    Using restrictions from first PPG: {first_ppg}")
+                
+                # Pass full restrictions_per_ppg as JSON string for R to parse
+                r_params['restrictions_per_ppg_json'] = json.dumps(restrictions_per_ppg)
+            
             r_params.update({
                 # Restrictions - Price
                 'price_min': restrictions.get('priceMin', 3.49),
@@ -1032,6 +1055,10 @@ async def proxy_r_post(path: str, request: Request, body: dict = None):
                 # Restrictions - Flyer mechanic constraints (future use)
                 'flyer_min': restrictions.get('flyerMin', 0),
                 'flyer_max': restrictions.get('flyerMax', 10),
+                
+                # Restrictions - Investment constraints  
+                'min_investment': restrictions.get('minInvestment', 50000),
+                'max_investment': restrictions.get('maxInvestment', 200000),
                 
                 # Mechanics as comma-separated string
                 'mechanics': ','.join([

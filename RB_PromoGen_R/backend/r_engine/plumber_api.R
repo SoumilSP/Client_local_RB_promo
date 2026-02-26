@@ -1055,13 +1055,78 @@ function() {
   }
   cat("[FILTERS] Returning", length(final_ppgs), "PPGs\n")
   
+  # Build PPG to Category mapping for frontend filtering
+  # The frontend uses this to filter PPGs based on selected Category
+  ppg_category_map <- list()
+  ppg_descriptions_map <- list()
+  
+  # Try to get PPG-Category mapping from optimizer_data (dp[[6]])
+  if (exists("data_prep_op", envir = .GlobalEnv)) {
+    dp <- get("data_prep_op", envir = .GlobalEnv)
+    if (is.list(dp) && length(dp) >= 6 && !is.null(dp[[6]]) && nrow(dp[[6]]) > 0) {
+      optimizer_data <- dp[[6]]
+      
+      # Check for CATEGORY column (preferred), fallback to SECTOR 2 or PRODUCT RANGE
+      category_col <- intersect(names(optimizer_data), c("CATEGORY", "Category", "SECTOR 2", "PRODUCT RANGE"))[1]
+      
+      if (!is.na(category_col) && "PPG" %in% names(optimizer_data)) {
+        cat("[FILTERS] Building PPG-Category map from column:", category_col, "\n")
+        unique_ppgs <- unique(optimizer_data$PPG)
+        
+        for (ppg_val in unique_ppgs) {
+          ppg_rows <- optimizer_data[optimizer_data$PPG == ppg_val, ]
+          if (nrow(ppg_rows) > 0) {
+            # Get category for this PPG
+            cat_val <- unique(ppg_rows[[category_col]])[1]
+            if (!is.na(cat_val)) {
+              ppg_category_map[[ppg_val]] <- as.character(cat_val)
+            }
+            # Also get PPG description if available
+            if ("PPG_Description" %in% names(ppg_rows)) {
+              desc_val <- unique(ppg_rows$PPG_Description)[1]
+              if (!is.na(desc_val)) {
+                ppg_descriptions_map[[ppg_val]] <- as.character(desc_val)
+              }
+            }
+          }
+        }
+        cat("[FILTERS] Built PPG-Category map for", length(ppg_category_map), "PPGs\n")
+      }
+    }
+  }
+  
+  # Also try nielsen_data for category mapping if optimizer_data didn't work
+  if (length(ppg_category_map) == 0) {
+    category_col <- intersect(names(nielsen_data), c("CATEGORY", "Category", "SECTOR 2", "PRODUCT RANGE"))[1]
+    ppg_col <- intersect(names(nielsen_data), c("PPG", "PRODUCT RANGE", "Product Range"))[1]
+    
+    if (!is.na(category_col) && !is.na(ppg_col)) {
+      cat("[FILTERS] Building PPG-Category map from nielsen_data columns:", ppg_col, "->", category_col, "\n")
+      unique_ppgs <- unique(nielsen_data[[ppg_col]])
+      
+      for (ppg_val in unique_ppgs) {
+        ppg_rows <- nielsen_data[nielsen_data[[ppg_col]] == ppg_val, ]
+        if (nrow(ppg_rows) > 0) {
+          cat_val <- unique(ppg_rows[[category_col]])[1]
+          if (!is.na(cat_val)) {
+            ppg_category_map[[as.character(ppg_val)]] <- as.character(cat_val)
+          }
+        }
+      }
+      cat("[FILTERS] Built PPG-Category map for", length(ppg_category_map), "PPGs from nielsen_data\n")
+    }
+  }
+  
   list(
     data_source = "data_prep_op",
     customers = customers_list,
-    categories = get_unique_values(nielsen_data, c("Category", "CATEGORY")),
+    categories = get_unique_values(nielsen_data, c("Category", "CATEGORY", "SECTOR 2")),
     brands = get_unique_values(nielsen_data, c("Brand", "BRAND")),
     formats = get_unique_values(nielsen_data, c("Format", "FORMAT")),
     ppgs = final_ppgs,
+    # PPG to Category mapping for frontend filtering
+    ppg_category_map = ppg_category_map,
+    ppg_descriptions = ppg_descriptions_map,
     # Also return the configured values
     configured_retailer = configured_retailer,
     configured_manufacturer = configured_manufacturer,
@@ -1538,7 +1603,19 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
          price_min = 3.49, price_max = 4.49, slots_min = 1, slots_max = 6,
          display_min = 0, display_max = 10, flyer_min = 0, flyer_max = 10,
          min_investment = 50000, max_investment = 200000,
-         mechanics = "display,flyer,displayFlyer") {
+         mechanics = "display,flyer,displayFlyer",
+         restrictions_per_ppg_json = "") {
+  
+  # Parse per-PPG restrictions if provided (for multi-PPG optimization)
+  per_ppg_restrictions <- NULL
+  if (!is.null(restrictions_per_ppg_json) && restrictions_per_ppg_json != "") {
+    tryCatch({
+      per_ppg_restrictions <- jsonlite::fromJSON(restrictions_per_ppg_json)
+      cat("[R-DEBUG] Parsed per-PPG restrictions for", length(names(per_ppg_restrictions)), "PPGs\n")
+    }, error = function(e) {
+      cat("[R-DEBUG] Failed to parse restrictions_per_ppg_json:", as.character(e), "\n")
+    })
+  }
   
   # Initialize log file path
   log_file <- file.path(DATA_DIR, "optimizer_log.txt")
@@ -2177,23 +2254,44 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         cat("        - Found PPGs:", paste(unique_ppgs, collapse=", "), "\n")
         
         # Create prod_const_promo_seq with columns expected by best_seq()
+        # CRITICAL FIX: Use per-PPG constraints when available
         # server.R: c("PPG","BRAND","FORMAT","Min_Total_Weeks","Max_Total_Weeks","Min_Display_Weeks","Max_Display_Weeks")
-        prod_const_promo_seq <- data.table(
-          PPG = unique_ppgs,
-          BRAND = if ("BRAND" %in% names(shiny_opti_data_ip)) unique(shiny_opti_data_ip$BRAND)[1] else brand,
-          FORMAT = if ("FORMAT" %in% names(shiny_opti_data_ip)) unique(shiny_opti_data_ip$FORMAT)[1] else "Standard",
-          Min_Total_Weeks = as.integer(slots_min),
-          Max_Total_Weeks = as.integer(slots_max),
-          Min_Total_Slots = as.integer(slots_min),
-          Max_Total_Slots = as.integer(slots_max),
-          # Display mechanic constraints
-          Min_Display_Weeks = as.integer(display_min),
-          Max_Display_Weeks = as.integer(display_max),
-          Min_Display_Slots = as.integer(display_min),
-          Max_Display_Slots = as.integer(display_max)
-        )
+        prod_const_promo_seq_rows <- list()
+        for (ppg_code in unique_ppgs) {
+          # Get per-PPG constraints if available
+          ppg_slots_min <- as.integer(slots_min)
+          ppg_slots_max <- as.integer(slots_max)
+          ppg_display_min <- as.integer(display_min)
+          ppg_display_max <- as.integer(display_max)
+          
+          if (!is.null(per_ppg_restrictions) && as.character(ppg_code) %in% names(per_ppg_restrictions)) {
+            ppg_restr <- per_ppg_restrictions[[as.character(ppg_code)]]
+            if (!is.null(ppg_restr$slotsMin)) ppg_slots_min <- as.integer(ppg_restr$slotsMin)
+            if (!is.null(ppg_restr$slotsMax)) ppg_slots_max <- as.integer(ppg_restr$slotsMax)
+            if (!is.null(ppg_restr$displayMin)) ppg_display_min <- as.integer(ppg_restr$displayMin)
+            if (!is.null(ppg_restr$displayMax)) ppg_display_max <- as.integer(ppg_restr$displayMax)
+            cat("          - Using per-PPG constraints for", ppg_code, ": slots=", ppg_slots_min, "-", ppg_slots_max,
+                ", display=", ppg_display_min, "-", ppg_display_max, "\n")
+          }
+          
+          prod_const_promo_seq_rows[[length(prod_const_promo_seq_rows) + 1]] <- data.table(
+            PPG = ppg_code,
+            BRAND = if ("BRAND" %in% names(shiny_opti_data_ip)) unique(shiny_opti_data_ip$BRAND)[1] else brand,
+            FORMAT = if ("FORMAT" %in% names(shiny_opti_data_ip)) unique(shiny_opti_data_ip$FORMAT)[1] else "Standard",
+            Min_Total_Weeks = ppg_slots_min,
+            Max_Total_Weeks = ppg_slots_max,
+            Min_Total_Slots = ppg_slots_min,
+            Max_Total_Slots = ppg_slots_max,
+            Min_Display_Weeks = ppg_display_min,
+            Max_Display_Weeks = ppg_display_max,
+            Min_Display_Slots = ppg_display_min,
+            Max_Display_Slots = ppg_display_max
+          )
+        }
+        prod_const_promo_seq <- rbindlist(prod_const_promo_seq_rows)
         cat("        - prod_const_promo_seq columns:", paste(names(prod_const_promo_seq), collapse=", "), "\n")
-        cat("        - Display constraints: Min=", display_min, ", Max=", display_max, "\n")
+        cat("        - prod_const_promo_seq rows:", nrow(prod_const_promo_seq), "\n")
+        cat("        - Default Display constraints: Min=", display_min, ", Max=", display_max, "\n")
         
         # ============================================================
         # STEP 2: Call best_seq() to determine optimal promotion sequence
@@ -2331,10 +2429,34 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         cat("============================================================\n\n")
         
         # Include/exclude PPGs
+        # MULTI-PPG SUPPORT: Handle comma-separated PPG list from frontend
         cat("[R-DEBUG] PPG Parameter from frontend:", ppg, "\n")
         cat("[R-DEBUG] PPG values in brand_data:", paste(unique(brand_data$PPG), collapse=", "), "\n")
-        include_ppg_list <- if (!is.null(ppg) && ppg != "") c(ppg) else unique(brand_data$PPG)
-        cat("[R-DEBUG] include_ppg_list:", paste(include_ppg_list, collapse=", "), "\n")
+        
+        # Parse PPG parameter - can be empty, single PPG, or comma-separated list
+        if (!is.null(ppg) && ppg != "") {
+          # Check if it's a comma-separated list
+          if (grepl(",", ppg)) {
+            include_ppg_list <- trimws(strsplit(ppg, ",")[[1]])
+            cat("[R-DEBUG] Multiple PPGs detected:", paste(include_ppg_list, collapse=", "), "\n")
+          } else {
+            # Single PPG
+            include_ppg_list <- c(ppg)
+            cat("[R-DEBUG] Single PPG detected:", ppg, "\n")
+          }
+          # Filter to only PPGs that exist in brand_data
+          valid_ppgs <- include_ppg_list[include_ppg_list %in% unique(brand_data$PPG)]
+          if (length(valid_ppgs) > 0) {
+            include_ppg_list <- valid_ppgs
+          } else {
+            cat("[R-DEBUG] WARNING: None of the requested PPGs found in data, using all available\n")
+            include_ppg_list <- unique(brand_data$PPG)
+          }
+        } else {
+          # No PPG specified, use all
+          include_ppg_list <- unique(brand_data$PPG)
+        }
+        cat("[R-DEBUG] include_ppg_list (final):", paste(include_ppg_list, collapse=", "), "\n")
         exclude_ppg_list <- character(0)
         
         # Include formats (same as server.R opti_format_input)
@@ -2534,27 +2656,65 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         
         # CRITICAL FIX: PPG_Description must match the value in prom_base/brand_data
         # The optimizer's budget merge uses this as a key, and brand_data typically has 'ALL'
-        ppg_desc_val <- if ("PPG_Description" %in% names(brand_data)) {
-          # Use the exact PPG_Description from brand_data to ensure merge works
-          unique(brand_data$PPG_Description[brand_data$PPG == include_ppg_list[1]])[1]
-        } else {
-          "ALL"  # Default to "ALL" which is commonly used in the data
-        }
-        # Ensure we have a non-NA value
-        if (is.na(ppg_desc_val) || is.null(ppg_desc_val) || length(ppg_desc_val) == 0) {
-          ppg_desc_val <- "ALL"
-        }
-        cat("        - ppg_desc_val:", ppg_desc_val, "\n")
+        # For multi-PPG, we need to get the correct description for EACH PPG
         
-        prod_budget <- data.table(
-          `PRODUCT RANGE` = product_range_val,
-          FORMAT = format_val,
-          PPG = include_ppg_list,
-          PPG_Description = ppg_desc_val,
-          # Investment constraints from frontend Product Restrictions
-          Min_Investment = as.numeric(min_investment),
-          Max_Investment = as.numeric(max_investment)
-        )
+        # Build a lookup of PPG -> PPG_Description from brand_data
+        ppg_desc_lookup <- list()
+        if ("PPG_Description" %in% names(brand_data)) {
+          for (current_ppg in include_ppg_list) {
+            ppg_rows <- brand_data[brand_data$PPG == current_ppg, ]
+            if (nrow(ppg_rows) > 0) {
+              desc <- unique(ppg_rows$PPG_Description)[1]
+              if (!is.na(desc) && nchar(as.character(desc)) > 0) {
+                ppg_desc_lookup[[as.character(current_ppg)]] <- as.character(desc)
+              } else {
+                ppg_desc_lookup[[as.character(current_ppg)]] <- "ALL"
+              }
+            } else {
+              ppg_desc_lookup[[as.character(current_ppg)]] <- "ALL"
+            }
+          }
+        }
+        cat("        - PPG Descriptions lookup:\n")
+        for (ppg_key in names(ppg_desc_lookup)) {
+          cat("          - ", ppg_key, ": ", ppg_desc_lookup[[ppg_key]], "\n")
+        }
+        
+        # Create prod_budget with correct description for EACH PPG
+        # Also use per-PPG investment constraints if provided
+        prod_budget_rows <- list()
+        for (current_ppg in include_ppg_list) {
+          ppg_desc <- if (as.character(current_ppg) %in% names(ppg_desc_lookup)) {
+            ppg_desc_lookup[[as.character(current_ppg)]]
+          } else {
+            "ALL"
+          }
+          
+          # Get per-PPG investment constraints if available
+          ppg_min_inv <- as.numeric(min_investment)
+          ppg_max_inv <- as.numeric(max_investment)
+          
+          if (!is.null(per_ppg_restrictions) && as.character(current_ppg) %in% names(per_ppg_restrictions)) {
+            ppg_restr <- per_ppg_restrictions[[as.character(current_ppg)]]
+            if (!is.null(ppg_restr$minInvestment)) {
+              ppg_min_inv <- as.numeric(ppg_restr$minInvestment)
+            }
+            if (!is.null(ppg_restr$maxInvestment)) {
+              ppg_max_inv <- as.numeric(ppg_restr$maxInvestment)
+            }
+            cat("          - Using per-PPG investment for", current_ppg, ":", ppg_min_inv, "-", ppg_max_inv, "\n")
+          }
+          
+          prod_budget_rows[[length(prod_budget_rows) + 1]] <- data.table(
+            `PRODUCT RANGE` = product_range_val,
+            FORMAT = format_val,
+            PPG = current_ppg,
+            PPG_Description = ppg_desc,
+            Min_Investment = ppg_min_inv,
+            Max_Investment = ppg_max_inv
+          )
+        }
+        prod_budget <- rbindlist(prod_budget_rows)
         cat("        - prod_budget:", nrow(prod_budget), "rows\n")
         cat("        - Investment constraints: AED", min_investment, "-", max_investment, "\n")
         cat("        - prod_budget columns:", paste(names(prod_budget), collapse=", "), "\n")
@@ -2565,32 +2725,56 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
         # C. prod_const - Product constraints (from server.R line 3062)
         # Structure includes slot constraints and price constraints
         cat("[R-16c] Preparing prod_const (product constraints)...\n")
-        prod_const <- data.table(
-          PPG = include_ppg_list,
-          BRAND = brand,
-          FORMAT = if ("FORMAT" %in% names(brand_data)) unique(brand_data$FORMAT)[1] else "Standard",
-          # Column names MUST match what event_list() expects (data_prep_event_list.R line 2309)
-          # event_list extracts: PPG, LSM_Promo_Price_Min, LSM_Promo_Price_Max, Non_LSM_Max_Promo_Price, Non_LSM_Min_Promo_Price, Global_Floor_Price
-          LSM_Promo_Price_Min = as.numeric(price_min),
-          LSM_Promo_Price_Max = as.numeric(price_max),
-          Non_LSM_Min_Promo_Price = as.numeric(price_min),
-          Non_LSM_Max_Promo_Price = as.numeric(price_max),
-          # Slot constraints (matching server.R line 3070 naming)
-          Min_Disc_Slots = as.integer(slots_min),
-          Max_Disc_Slots = as.integer(slots_max),
-          # Display mechanic constraints - how many Display promos allowed
-          Min_Display_Slots = as.integer(display_min),
-          Max_Display_Slots = as.integer(display_max),
-          Min_Total_Slots = as.integer(slots_min),
-          Max_Total_Slots = as.integer(slots_max),
-          Global_Floor_Price = as.numeric(price_min)
-        )
+        
+        # Build prod_const with per-PPG constraints if available
+        prod_const_rows <- list()
+        for (current_ppg in include_ppg_list) {
+          # Default constraints from request parameters
+          ppg_price_min <- as.numeric(price_min)
+          ppg_price_max <- as.numeric(price_max)
+          ppg_slots_min <- as.integer(slots_min)
+          ppg_slots_max <- as.integer(slots_max)
+          ppg_display_min <- as.integer(display_min)
+          ppg_display_max <- as.integer(display_max)
+          
+          # Override with per-PPG restrictions if available
+          if (!is.null(per_ppg_restrictions) && as.character(current_ppg) %in% names(per_ppg_restrictions)) {
+            ppg_restr <- per_ppg_restrictions[[as.character(current_ppg)]]
+            if (!is.null(ppg_restr$priceMin)) ppg_price_min <- as.numeric(ppg_restr$priceMin)
+            if (!is.null(ppg_restr$priceMax)) ppg_price_max <- as.numeric(ppg_restr$priceMax)
+            if (!is.null(ppg_restr$slotsMin)) ppg_slots_min <- as.integer(ppg_restr$slotsMin)
+            if (!is.null(ppg_restr$slotsMax)) ppg_slots_max <- as.integer(ppg_restr$slotsMax)
+            if (!is.null(ppg_restr$displayMin)) ppg_display_min <- as.integer(ppg_restr$displayMin)
+            if (!is.null(ppg_restr$displayMax)) ppg_display_max <- as.integer(ppg_restr$displayMax)
+            cat("          - Using per-PPG constraints for", current_ppg, "\n")
+          }
+          
+          prod_const_rows[[length(prod_const_rows) + 1]] <- data.table(
+            PPG = current_ppg,
+            BRAND = brand,
+            FORMAT = if ("FORMAT" %in% names(brand_data)) unique(brand_data$FORMAT)[1] else "Standard",
+            LSM_Promo_Price_Min = ppg_price_min,
+            LSM_Promo_Price_Max = ppg_price_max,
+            Non_LSM_Min_Promo_Price = ppg_price_min,
+            Non_LSM_Max_Promo_Price = ppg_price_max,
+            Min_Disc_Slots = ppg_slots_min,
+            Max_Disc_Slots = ppg_slots_max,
+            Min_Display_Slots = ppg_display_min,
+            Max_Display_Slots = ppg_display_max,
+            Min_Total_Slots = ppg_slots_min,
+            Max_Total_Slots = ppg_slots_max,
+            Global_Floor_Price = ppg_price_min
+          )
+        }
+        prod_const <- rbindlist(prod_const_rows)
         cat("        - prod_const:", nrow(prod_const), "rows\n")
         cat("        - prod_const columns:", paste(names(prod_const), collapse=", "), "\n")
         cat("        - Display constraints: Min=", display_min, ", Max=", display_max, "\n")
         cat("        - Price constraints in prod_const:\n")
-        cat("          - Non_LSM_Min_Promo_Price:", prod_const$Non_LSM_Min_Promo_Price[1], "\n")
-        cat("          - Non_LSM_Max_Promo_Price:", prod_const$Non_LSM_Max_Promo_Price[1], "\n")
+        if (nrow(prod_const) > 0) {
+          cat("          - Non_LSM_Min_Promo_Price:", prod_const$Non_LSM_Min_Promo_Price[1], "\n")
+          cat("          - Non_LSM_Max_Promo_Price:", prod_const$Non_LSM_Max_Promo_Price[1], "\n")
+        }
         
         # D. opti_goal - Goal table (from server.R line 2946-2951)
         # Map goal names to optimization code variable names (same as R Shiny)
@@ -2754,41 +2938,138 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
           # --------------------------------------------------------
           # UNCONSTRAINED OPTIMIZATION ONLY (server.R line 3338)
           # --------------------------------------------------------
-          cat("\n>>> EXECUTING UNCONSTRAINED OPTIMIZATION <<<\n")
-          cat("        Parameters:\n")
-          cat("        - brand (from best_seq):", nrow(brand_data), "rows\n")
-          cat("        - shiny_const (opti_const):", nrow(opti_const), "rows\n")
-          cat("        - budget_const (prod_budget):", nrow(prod_budget), "rows\n")
-          cat("        - events_base:", nrow(shiny_ip_events), "rows\n")
-          cat("        - ppg_slots (prod_const):", nrow(prod_const), "rows\n")
-          cat("        - last_year_kpi:", nrow(last_year_kpi), "rows\n")
-          cat("        - include_format:", paste(include_format, collapse=", "), "\n")
-          cat("        - roi:", ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"), "\n")
-          cat("        - include_ppg:", paste(include_ppg_list, collapse=", "), "\n")
-          cat("        - start_date:", as.character(start_date_val), "\n")
-          cat("        - end_date:", as.character(end_date_val), "\n")
           
-          opt_result <- optimization(
-            brand = brand_data,                    # Output from best_seq()
-            shiny_const = opti_const,              # KPI constraints
-            budget_const = prod_budget,            # Budget constraints per PPG
-            all_other_sales = other_sales,         # Category sales
-            opti_goal = opti_goal,                 # Goal table
-            opti_sign = opti_sign_value,           # Maximize/Minimize
-            events_base = shiny_ip_events,         # Events with Display_Flag
-            ppg_slots = prod_const,                # Product constraints
-            exclude_ppg = exclude_ppg_list,        # PPGs to exclude
-            last_year_kpi = last_year_kpi,         # Nielsen data with dates
-            include_format = include_format,       # Format filters
-            roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
-            all_other_sales_value = other_sales_value,
-            include_ppg = include_ppg_list,
-            start_date = start_date_val,
-            end_date = end_date_val,
-            progress = FALSE
-          )
-          
-          cat("\n>>> UNCONSTRAINED OPTIMIZATION COMPLETED <<<\n")
+          # Check if we need to run PPGs independently (multi-PPG mode)
+          # To match single-PPG results, each PPG must be optimized independently
+          if (length(include_ppg_list) > 1) {
+            cat("\n>>> EXECUTING UNCONSTRAINED OPTIMIZATION (MULTI-PPG INDEPENDENT MODE) <<<\n")
+            cat("        NOTE: Running each PPG independently to match single-PPG results\n")
+            
+            # Store combined results
+            combined_opti_output <- data.table()
+            combined_kpi_iteration <- data.table()
+            combined_exc_brand <- data.table()
+            combined_budget_info <- data.table()
+            
+            # Run optimization for each PPG independently
+            for (current_ppg in include_ppg_list) {
+              cat("\n========== INDEPENDENT OPTIMIZATION FOR PPG:", current_ppg, "==========\n")
+              
+              # Filter data for this single PPG
+              single_ppg_list <- c(current_ppg)
+              ppg_brand_data <- brand_data[brand_data$PPG %in% single_ppg_list, ]
+              ppg_prod_budget <- prod_budget[prod_budget$PPG %in% single_ppg_list, ]
+              ppg_prod_const <- prod_const[prod_const$PPG %in% single_ppg_list, ]
+              ppg_events <- shiny_ip_events[shiny_ip_events$PPG %in% single_ppg_list, ]
+              ppg_last_year_kpi <- last_year_kpi[last_year_kpi$PPG %in% single_ppg_list, ]
+              
+              cat("        - brand_data for", current_ppg, ":", nrow(ppg_brand_data), "rows\n")
+              cat("        - events for", current_ppg, ":", nrow(ppg_events), "rows\n")
+              cat("        - prod_budget for", current_ppg, ":", nrow(ppg_prod_budget), "rows\n")
+              cat("        - prod_const for", current_ppg, ":", nrow(ppg_prod_const), "rows\n")
+              
+              if (nrow(ppg_brand_data) == 0 || nrow(ppg_events) == 0) {
+                cat("        WARNING: Skipping PPG", current_ppg, "- insufficient data\n")
+                next
+              }
+              
+              # Run optimization for this single PPG
+              tryCatch({
+                ppg_result <- optimization(
+                  brand = ppg_brand_data,
+                  shiny_const = opti_const,
+                  budget_const = ppg_prod_budget,
+                  all_other_sales = other_sales,
+                  opti_goal = opti_goal,
+                  opti_sign = opti_sign_value,
+                  events_base = ppg_events,
+                  ppg_slots = ppg_prod_const,
+                  exclude_ppg = character(0),  # No exclusions - already filtered
+                  last_year_kpi = ppg_last_year_kpi,
+                  include_format = include_format,
+                  roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
+                  all_other_sales_value = other_sales_value,
+                  include_ppg = single_ppg_list,
+                  start_date = start_date_val,
+                  end_date = end_date_val,
+                  progress = FALSE
+                )
+                
+                # Extract and combine results
+                # opt_result is a list: [[1]] opti_output, [[2]] exc_brand, [[3]] kpi_iteration, [[4]] budget_info
+                if (!is.null(ppg_result) && is.list(ppg_result) && length(ppg_result) >= 1) {
+                  ppg_opti_output <- ppg_result[[1]]
+                  if (!is.null(ppg_opti_output) && nrow(ppg_opti_output) > 0) {
+                    combined_opti_output <- rbindlist(list(combined_opti_output, ppg_opti_output), fill = TRUE)
+                    cat("        - Optimization output for", current_ppg, ":", nrow(ppg_opti_output), "rows\n")
+                  }
+                  if (length(ppg_result) >= 2 && !is.null(ppg_result[[2]]) && nrow(ppg_result[[2]]) > 0) {
+                    combined_exc_brand <- rbindlist(list(combined_exc_brand, ppg_result[[2]]), fill = TRUE)
+                  }
+                  if (length(ppg_result) >= 3 && !is.null(ppg_result[[3]]) && nrow(ppg_result[[3]]) > 0) {
+                    combined_kpi_iteration <- rbindlist(list(combined_kpi_iteration, ppg_result[[3]]), fill = TRUE)
+                  }
+                  if (length(ppg_result) >= 4 && !is.null(ppg_result[[4]]) && nrow(ppg_result[[4]]) > 0) {
+                    combined_budget_info <- rbindlist(list(combined_budget_info, ppg_result[[4]]), fill = TRUE)
+                  }
+                }
+              }, error = function(e) {
+                cat("        ERROR optimizing PPG", current_ppg, ":", as.character(e), "\n")
+              })
+            }
+            
+            # Construct the final result in the same structure as single optimization
+            cat("\n>>> COMBINING INDEPENDENT PPG RESULTS <<<\n")
+            cat("        - Combined opti_output rows:", nrow(combined_opti_output), "\n")
+            cat("        - Combined kpi_iteration rows:", nrow(combined_kpi_iteration), "\n")
+            
+            opt_result <- list(
+              combined_opti_output,
+              combined_exc_brand,
+              combined_kpi_iteration,
+              combined_budget_info
+            )
+            
+            cat("\n>>> MULTI-PPG INDEPENDENT OPTIMIZATION COMPLETED <<<\n")
+            
+          } else {
+            # Single PPG - run normally
+            cat("\n>>> EXECUTING UNCONSTRAINED OPTIMIZATION (SINGLE PPG) <<<\n")
+            cat("        Parameters:\n")
+            cat("        - brand (from best_seq):", nrow(brand_data), "rows\n")
+            cat("        - shiny_const (opti_const):", nrow(opti_const), "rows\n")
+            cat("        - budget_const (prod_budget):", nrow(prod_budget), "rows\n")
+            cat("        - events_base:", nrow(shiny_ip_events), "rows\n")
+            cat("        - ppg_slots (prod_const):", nrow(prod_const), "rows\n")
+            cat("        - last_year_kpi:", nrow(last_year_kpi), "rows\n")
+            cat("        - include_format:", paste(include_format, collapse=", "), "\n")
+            cat("        - roi:", ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"), "\n")
+            cat("        - include_ppg:", paste(include_ppg_list, collapse=", "), "\n")
+            cat("        - start_date:", as.character(start_date_val), "\n")
+            cat("        - end_date:", as.character(end_date_val), "\n")
+            
+            opt_result <- optimization(
+              brand = brand_data,                    # Output from best_seq()
+              shiny_const = opti_const,              # KPI constraints
+              budget_const = prod_budget,            # Budget constraints per PPG
+              all_other_sales = other_sales,         # Category sales
+              opti_goal = opti_goal,                 # Goal table
+              opti_sign = opti_sign_value,           # Maximize/Minimize
+              events_base = shiny_ip_events,         # Events with Display_Flag
+              ppg_slots = prod_const,                # Product constraints
+              exclude_ppg = exclude_ppg_list,        # PPGs to exclude
+              last_year_kpi = last_year_kpi,         # Nielsen data with dates
+              include_format = include_format,       # Format filters
+              roi = ifelse(roi_type == "Incremental NR ROI", "ROI_NR", "ROI_GM"),
+              all_other_sales_value = other_sales_value,
+              include_ppg = include_ppg_list,
+              start_date = start_date_val,
+              end_date = end_date_val,
+              progress = FALSE
+            )
+            
+            cat("\n>>> UNCONSTRAINED OPTIMIZATION COMPLETED <<<\n")
+          }
           
         } else if (optimization_mode == "lsm") {
           # --------------------------------------------------------
@@ -2798,8 +3079,6 @@ function(goal = "NR", goal_full_name = "Scan Net Revenue", goal_sign = "Max",
           cat("        NOTE: LSM mode requires LSM-specific data preparation\n")
           cat("        Using same data as unconstrained (LSM data not separately prepared)\n")
           
-          # For now, use the same data path as unconstrained
-          # Full LSM support would require separate data preparation
           opt_result <- optimization(
             brand = brand_data,
             shiny_const = opti_const,
@@ -3778,9 +4057,26 @@ function() {
                 0
               }
               
-              # Determine mechanic based on flags AND discount (matches actual promotion logic)
-              mechanic <- if (!is.na(display_flag) && display_flag == 1) {
+              # Determine mechanic based on flags AND discount (matches multi-PPG logic with Flyer support)
+              # Get Flyer_Flag for multi-PPG support
+              flyer_flag <- if ("Flyer_Flag" %in% names(ppg_data)) {
+                as.numeric(ppg_data$Flyer_Flag[row_idx])
+              } else {
+                0
+              }
+              
+              # Multi-PPG mechanic determination with Flyer support:
+              # - Display_Flag == 1 && Flyer_Flag == 1 -> "Display + Flyer"
+              # - Display_Flag == 1 && Flyer_Flag == 0 -> "Display"
+              # - Display_Flag == 0 && Flyer_Flag == 1 -> "Flyer"
+              # - else with discount -> "TPR"
+              # - else -> "No Promo"
+              mechanic <- if (!is.na(display_flag) && display_flag == 1 && !is.na(flyer_flag) && flyer_flag == 1) {
+                "Display + Flyer"
+              } else if (!is.na(display_flag) && display_flag == 1) {
                 "Display"
+              } else if (!is.na(flyer_flag) && flyer_flag == 1) {
+                "Flyer"
               } else if (!is.na(tpr_flag) && tpr_flag == 1) {
                 "TPR"
               } else if (!is.na(discount_pct) && discount_pct > 0) {
@@ -3860,6 +4156,7 @@ function() {
                 discount = round(discount_pct, 0),
                 displayFlag = display_flag,
                 tprFlag = tpr_flag,
+                flyerFlag = flyer_flag,  # Added for multi-PPG Flyer support
                 tescoWeekNo = if ("Tesco_Week_No" %in% names(ppg_data)) as.numeric(ppg_data$Tesco_Week_No[row_idx]) else NA,
                 # P&L values
                 nr = round(nr, 0),
@@ -4067,18 +4364,25 @@ function() {
           base_sales <- if ("Base Sales" %in% names(row)) as.numeric(row$`Base Sales`) else 
                         if ("Base_Units" %in% names(row)) as.numeric(row$Base_Units) else 0
           
-          # FIXED: Mechanic determined by Display_Flag, TPR_Flag, OR discount/trade investment
-          # This matches the calendar-data endpoint logic
-          # Display_Flag == 1 -> "Display"
-          # TPR_Flag == 1 OR discount > 0 OR trade_investment > 0 -> "TPR" 
-          # Otherwise -> "No Promo" (base price, no discount)
+          # FIXED: Mechanic determined by Display_Flag, Flyer_Flag, TPR_Flag, OR discount/trade investment
+          # Multi-PPG support with Flyer mechanics:
+          # - Display_Flag == 1 && Flyer_Flag == 1 -> "Display + Flyer"
+          # - Display_Flag == 1 -> "Display"
+          # - Flyer_Flag == 1 -> "Flyer"
+          # - TPR_Flag == 1 OR discount > 0 OR trade_investment > 0 -> "TPR" 
+          # - Otherwise -> "No Promo" (base price, no discount)
           display_flag <- if ("Display_Flag" %in% names(row)) as.numeric(row$Display_Flag) else 0
           tpr_flag <- if ("TPR_Flag" %in% names(row)) as.numeric(row$TPR_Flag) else 
                       if ("Promo_Flag" %in% names(row)) as.numeric(row$Promo_Flag) else 0
+          flyer_flag <- if ("Flyer_Flag" %in% names(row)) as.numeric(row$Flyer_Flag) else 0
           
-          # CRITICAL FIX: Use discount and trade investment to determine TPR when flags are missing
-          mechanic <- if (!is.na(display_flag) && display_flag == 1) {
+          # Multi-PPG mechanic determination with Flyer support
+          mechanic <- if (!is.na(display_flag) && display_flag == 1 && !is.na(flyer_flag) && flyer_flag == 1) {
+            "Display + Flyer"
+          } else if (!is.na(display_flag) && display_flag == 1) {
             "Display"
+          } else if (!is.na(flyer_flag) && flyer_flag == 1) {
+            "Flyer"
           } else if (!is.na(tpr_flag) && tpr_flag == 1) {
             "TPR"
           } else if (!is.na(discount) && discount > 0) {
@@ -4170,6 +4474,7 @@ function() {
             displayType = display_type,
             displayFlag = display_flag,
             tprFlag = tpr_flag,
+            flyerFlag = flyer_flag,  # Added for multi-PPG Flyer support
             rsp = round(rsp, 2),
             promoPrice = round(promo_price, 2),
             discount = round(discount),
@@ -4649,9 +4954,20 @@ function(ppg = "", tesco_week_no = "") {
     for (i in seq_len(n_rows)) {
       row <- ppg_events[i, ]
       
-      # Determine mechanic based on Display_Flag
+      # Determine mechanic based on Display_Flag and Flyer_Flag (multi-PPG support)
       display_flag <- as.numeric(row$Display_Flag %||% 0)
-      mechanic <- if (!is.na(display_flag) && display_flag == 1) "Display" else "TPR"
+      flyer_flag <- as.numeric(row$Flyer_Flag %||% 0)
+      
+      # Multi-PPG mechanic determination with Flyer support
+      mechanic <- if (!is.na(display_flag) && display_flag == 1 && !is.na(flyer_flag) && flyer_flag == 1) {
+        "Display + Flyer"
+      } else if (!is.na(display_flag) && display_flag == 1) {
+        "Display"
+      } else if (!is.na(flyer_flag) && flyer_flag == 1) {
+        "Flyer"
+      } else {
+        "TPR"
+      }
       
       # Get display type
       display_type <- ""
@@ -4713,6 +5029,8 @@ function(ppg = "", tesco_week_no = "") {
         id = i,
         mechanic = mechanic,
         displayType = display_type,
+        displayFlag = display_flag,
+        flyerFlag = flyer_flag,  # Added for multi-PPG Flyer support
         promoPrice = round(promo_price, 2),
         discount = round(discount_pct, 0),
         rsp = round(event_rsp, 2),

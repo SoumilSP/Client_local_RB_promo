@@ -96,6 +96,9 @@ class FilterOptions(BaseModel):
     formats: List[str]
     ppgs: List[str]
     manufacturers: List[str]
+    # PPG to Category mapping for frontend filtering
+    ppg_category_map: Optional[dict] = {}
+    ppg_descriptions: Optional[dict] = {}
 
 class PromotionEvent(BaseModel):
     id: str
@@ -440,6 +443,16 @@ async def get_filter_options():
         ppgs = ensure_list(r_data.get("ppgs", []))
         manufacturers = ensure_list(r_data.get("manufacturers", []))
         
+        # Get PPG-Category mapping and descriptions (for frontend filtering)
+        ppg_category_map = r_data.get("ppg_category_map", {})
+        ppg_descriptions = r_data.get("ppg_descriptions", {})
+        
+        # Ensure these are dictionaries (handle R's unboxing)
+        if isinstance(ppg_category_map, list):
+            ppg_category_map = {}
+        if isinstance(ppg_descriptions, list):
+            ppg_descriptions = {}
+        
         return FilterOptions(
             countries=countries,
             customers=customers,
@@ -447,7 +460,9 @@ async def get_filter_options():
             brands=brands,
             formats=formats,
             ppgs=ppgs,
-            manufacturers=manufacturers
+            manufacturers=manufacturers,
+            ppg_category_map=ppg_category_map,
+            ppg_descriptions=ppg_descriptions
         )
     
     # Return empty data if R API not available - NO MOCK DATA
@@ -458,7 +473,9 @@ async def get_filter_options():
         brands=[],
         formats=[],
         ppgs=[],
-        manufacturers=[]
+        manufacturers=[],
+        ppg_category_map={},
+        ppg_descriptions={}
     )
 
 
