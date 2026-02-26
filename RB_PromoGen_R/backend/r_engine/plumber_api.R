@@ -4729,10 +4729,54 @@ function(ppg = "", tesco_week_no = "") {
       )
     }
     
-    # Sort by ROI descending
+    # ==============================================================
+    # DEDUPLICATE ALTERNATES BY EVENT CONFIGURATION
+    # Events with same (mechanic, discount%, promo_price) should appear only once
+    # This prevents duplicates that may exist in shiny_ip_events with different
+    # KPI calculations due to different base data contexts
+    # ==============================================================
+    cat("[ALTERNATE-EVENTS] Before deduplication:", length(alternates), "alternates\n")
+    
     if (length(alternates) > 1) {
-      roi_values <- sapply(alternates, function(x) x$roi)
-      alternates <- alternates[order(roi_values, decreasing = TRUE)]
+      # Helper function to normalize discount (handle both 0.12 and 12 formats)
+      normalize_discount <- function(d) {
+        d_val <- as.numeric(d)
+        if (is.na(d_val)) return(0)
+        # If it's a decimal like 0.12, convert to percentage 12
+        if (d_val > 0 && d_val < 1) return(round(d_val * 100))
+        return(round(d_val))
+      }
+      
+      # Create unique keys for each alternate
+      seen_keys <- c()
+      unique_alternates <- list()
+      
+      for (alt in alternates) {
+        # Key = mechanic_discount_price (without displayType to catch more duplicates)
+        alt_key <- paste(
+          alt$mechanic,
+          normalize_discount(alt$discount),  # Normalize and round discount
+          sprintf("%.2f", round(alt$promoPrice, 2)),  # Format price to 2 decimals
+          sep = "_"
+        )
+        
+        if (!(alt_key %in% seen_keys)) {
+          seen_keys <- c(seen_keys, alt_key)
+          unique_alternates[[length(unique_alternates) + 1]] <- alt
+        } else {
+          cat("[ALTERNATE-EVENTS] Filtering duplicate config:", alt_key, 
+              "NR:", alt$NR, "GS:", alt$GS, "\n")
+        }
+      }
+      
+      alternates <- unique_alternates
+      cat("[ALTERNATE-EVENTS] After deduplication:", length(alternates), "alternates\n")
+    }
+    
+    # Sort by NR descending (ROI calculation removed from UI)
+    if (length(alternates) > 1) {
+      nr_values <- sapply(alternates, function(x) x$NR)
+      alternates <- alternates[order(nr_values, decreasing = TRUE)]
     }
     
     cat("[ALTERNATE-EVENTS] SUCCESS: Returning", length(alternates), "alternates\n")
