@@ -4109,15 +4109,15 @@ function() {
               gm <- if ("GM_Abs" %in% names(ppg_data)) as.numeric(ppg_data$GM_Abs[row_idx]) else nr * 0.25
               inc_gm <- if ("Inc_GM_Abs" %in% names(ppg_data)) as.numeric(ppg_data$Inc_GM_Abs[row_idx]) else gm * 0.3
               
-              # Get ROI from optimizer output - prefer ROI_GM column, then ROI, then calculate as fallback
-              roi <- if ("ROI_GM" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$ROI_GM[row_idx]))) {
-                as.numeric(ppg_data$ROI_GM[row_idx])
-              } else if ("ROI" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$ROI[row_idx]))) {
-                as.numeric(ppg_data$ROI[row_idx])
-              } else if ("R_ROI_GM" %in% names(ppg_data) && !is.na(as.numeric(ppg_data$R_ROI_GM[row_idx]))) {
-                as.numeric(ppg_data$R_ROI_GM[row_idx])
+              # Get R_Trade_Inv_Inc for correct ROI calculation
+              r_trade_inv_inc <- if ("R_Trade_Inv_Inc" %in% names(ppg_data)) as.numeric(ppg_data$R_Trade_Inv_Inc[row_idx]) else 0
+              
+              # Calculate ROI using correct formula: Inc_GM_Abs / R_Trade_Inv_Inc
+              # This is the client-specified formula that gives correct values
+              roi <- if (!is.na(inc_gm) && !is.na(r_trade_inv_inc) && r_trade_inv_inc != 0) {
+                round(inc_gm / r_trade_inv_inc, 2)
               } else if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
-                # Only calculate as fallback if ROI column doesn't exist
+                # Fallback to Inc_GM_Abs / Total_Trade_Investment
                 round(inc_gm / ts, 2)
               } else {
                 0
@@ -4360,6 +4360,7 @@ function() {
           ts <- if ("Total_Trade_Investment" %in% names(row)) as.numeric(row$Total_Trade_Investment) else 0
           gm <- if ("GM_Abs" %in% names(row)) as.numeric(row$GM_Abs) else nr * 0.25
           inc_gm <- if ("Inc_GM_Abs" %in% names(row)) as.numeric(row$Inc_GM_Abs) else gm * 0.3
+          r_trade_inv_inc <- if ("R_Trade_Inv_Inc" %in% names(row)) as.numeric(row$R_Trade_Inv_Inc) else 0
           total_sales <- if ("Total_Sales" %in% names(row)) as.numeric(row$Total_Sales) else 0
           base_sales <- if ("Base Sales" %in% names(row)) as.numeric(row$`Base Sales`) else 
                         if ("Base_Units" %in% names(row)) as.numeric(row$Base_Units) else 0
@@ -4405,15 +4406,12 @@ function() {
             discount <- 0
           }
           
-          # Get ROI from optimizer output - prefer ROI_GM column, then ROI, then calculate as fallback
-          roi <- if ("ROI_GM" %in% names(row) && !is.na(as.numeric(row$ROI_GM))) {
-            as.numeric(row$ROI_GM)
-          } else if ("ROI" %in% names(row) && !is.na(as.numeric(row$ROI))) {
-            as.numeric(row$ROI)
-          } else if ("R_ROI_GM" %in% names(row) && !is.na(as.numeric(row$R_ROI_GM))) {
-            as.numeric(row$R_ROI_GM)
+          # Calculate ROI using correct formula: Inc_GM_Abs / R_Trade_Inv_Inc
+          # This is the client-specified formula that gives correct values
+          roi <- if (!is.na(inc_gm) && !is.na(r_trade_inv_inc) && r_trade_inv_inc != 0) {
+            round(inc_gm / r_trade_inv_inc, 2)
           } else if (!is.na(ts) && ts > 0 && !is.na(inc_gm)) {
-            # Only calculate as fallback if ROI column doesn't exist
+            # Fallback to Inc_GM_Abs / Total_Trade_Investment
             round(inc_gm / ts, 2)
           } else {
             0
@@ -5019,11 +5017,13 @@ function(ppg = "", tesco_week_no = "") {
         gm_abs <- net_revenue - cogs_total
       }
       
-      # Get ROI from original data (already calculated correctly there)
-      roi <- as.numeric(row$R_ROI_GM %||% row$ROI_GM %||% row$ROI %||% 0)
+      # Get ROI from original data - ROI_GM is the correct column (Reckitt's ROI)
+      # R_ROI_GM is retailer ROI, not what we want
+      # ROI_GM = Inc_GM_Abs / Trade_Investment (from data_prep_event_list.R line 224)
+      roi <- as.numeric(row$ROI_GM %||% row$ROI %||% 0)
       
-      # Get Inc_GM_Abs if available (used for ROI calculation verification)
-      inc_gm <- as.numeric(row$Inc_GM_Abs %||% row$R_GM_Inc %||% 0)
+      # Get Inc_GM_Abs for display purposes
+      inc_gm <- as.numeric(row$Inc_GM_Abs %||% 0)
       
       alternates[[length(alternates) + 1]] <- list(
         id = i,
